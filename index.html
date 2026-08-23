@@ -1,0 +1,2406 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 Адия Қаздойбы — Қазақ дойбысы</title>
+    <link href="https://fonts.googleapis.com/css2?family=Marck+Script&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root { --cell-size: 40px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: clamp(6px, 2vw, 20px);
+            overflow-x: hidden;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: clamp(12px, 3vw, 40px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        h1 {
+            text-align: center;
+            color: #667eea;
+            font-size: clamp(1.8rem, 5vw, 2.5rem);
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: clamp(16px, 3vw, 30px);
+            font-size: 1.1em;
+        }
+        .setup { max-width: 800px; margin: 0 auto; }
+        .setup.hidden { display: none; }
+        .setup h2 {
+            color: #667eea;
+            margin-bottom: clamp(16px, 3vw, 25px);
+            text-align: center;
+            font-size: clamp(1.35rem, 4vw, 1.8rem);
+        }
+        .player-config {
+            margin-bottom: clamp(12px, 2vw, 20px);
+            padding: clamp(12px, 2.5vw, 20px);
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px;
+            border: 3px solid #ddd;
+        }
+        .player-config label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+        }
+        .player-config select {
+            width: 100%;
+            padding: 12px;
+            border: 3px solid #667eea;
+            border-radius: 10px;
+            font-size: 1.1em;
+            background: white;
+            cursor: pointer;
+        }
+        
+        .setup-actions { display: flex; flex-wrap: wrap; gap: clamp(10px, 2vw, 15px); margin-top: clamp(18px, 4vw, 30px); }
+        .btn-start, .btn-load {
+            flex: 1 1 180px;
+            padding: clamp(14px, 3vw, 20px);
+            color: white;
+            border: none;
+            border-radius: 15px;
+            font-size: clamp(1rem, 3vw, 1.3rem);
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .btn-start { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .btn-start:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.5); }
+        .btn-load { background: linear-gradient(135deg, #43a047 0%, #1b5e20 100%); display: none; }
+        .btn-load:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(67, 160, 71, 0.5); }
+
+        .game { display: none; }
+        .game.active { display: block; }
+        .players-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+            gap: clamp(10px, 2vw, 20px);
+            margin-bottom: clamp(16px, 3vw, 30px);
+        }
+        .player-box {
+            padding: clamp(12px, 2vw, 20px);
+            border-radius: 15px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            transition: all 0.3s;
+            border: 4px solid transparent;
+        }
+        .player-box.blue { background: linear-gradient(135deg, #667eea 0%, #4c63d2 100%); }
+        .player-box.black { background: linear-gradient(135deg, #434343 0%, #000000 100%); }
+        .player-box.red { background: linear-gradient(135deg, #f5576c 0%, #d63447 100%); }
+        .player-box.white { background: linear-gradient(135deg, #e0e0e0 0%, #bdbdbd 100%); color: #333; }
+        .player-box.active {
+            border: 4px solid gold;
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+            transform: scale(1.05);
+        }
+        .player-box div { margin: 8px 0; font-size: 1.1em; }
+        
+        .game-area {
+            display: flex;
+            gap: clamp(14px, 3vw, 30px);
+            justify-content: center;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            margin-top: clamp(16px, 3vw, 30px);
+        }
+
+        .board-wrapper {
+            display: flex;
+            justify-content: center;
+            max-width: 100%;
+            min-width: 0;
+            overflow: hidden;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .board-container { display: inline-block; }
+        .board-labels-top, .board-labels-bottom { display: flex; margin-bottom: calc(var(--cell-size) * 0.125); padding-left: calc(var(--cell-size) * 0.875 + 5px); }
+        .board-labels-top span, .board-labels-bottom span {
+            width: var(--cell-size); text-align: center; font-weight: bold; color: #667eea; font-size: clamp(0.7rem, calc(var(--cell-size) * 0.42), 1.1rem);
+        }
+        .board-with-left-labels { display: flex; }
+        .board-labels-left, .board-labels-right {
+            display: flex; flex-direction: column; justify-content: space-around; margin-right: calc(var(--cell-size) * 0.125);
+        }
+        .board-labels-right { margin-left: calc(var(--cell-size) * 0.125); margin-right: 0; }
+        .board-labels-left span, .board-labels-right span {
+            height: var(--cell-size); width: calc(var(--cell-size) * 0.875); display: flex; align-items: center; justify-content: center;
+            font-weight: bold; color: #ff8c00; font-size: clamp(0.7rem, calc(var(--cell-size) * 0.42), 1.1rem);
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(12, var(--cell-size));
+            grid-template-rows: repeat(12, var(--cell-size));
+            gap: 0;
+            border: max(2px, calc(var(--cell-size) * 0.125)) solid #ff8c00;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+            background: #fff;
+        }
+        .cell {
+            width: var(--cell-size); height: var(--cell-size);
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; transition: all 0.2s; position: relative;
+        }
+        .cell.light { background: rgb(255, 255, 0); }
+        .cell.dark  { background: rgb(255, 165, 0); }
+        .cell.oob   { background: rgb(255, 255, 255); }
+        
+        .cell.selected { background-color: rgba(255, 255, 0, 0.4) !important; box-shadow: inset 0 0 15px rgba(255, 215, 0, 0.9); }
+        
+        .cell.possible::after {
+            content: ''; position: absolute; width: calc(var(--cell-size) * 0.35); height: calc(var(--cell-size) * 0.35);
+            background: rgba(50, 205, 50, 0.85); border-radius: 50%;
+            box-shadow: 0 0 8px rgba(50, 205, 50, 0.5); pointer-events: none;
+        }
+        .cell.capture::after {
+            content: ''; position: absolute; width: calc(var(--cell-size) * 0.45); height: calc(var(--cell-size) * 0.45);
+            background: transparent; border: 4px solid rgba(255, 69, 0, 0.9);
+            border-radius: 50%; box-shadow: inset 0 0 8px rgba(255, 69, 0, 0.5);
+            pointer-events: none;
+        }
+        
+        .cell.last-move-from { background-color: rgba(144, 238, 144, 0.6) !important; }
+        .cell.last-move-to { background-color: rgba(135, 206, 235, 0.6) !important; }
+        .cell.hint-highlight { box-shadow: inset 0 0 20px #00ff00 !important; z-index: 5; animation: pulseHint 1s infinite; }
+        @keyframes pulseHint { 0%, 100% { background-color: rgba(0, 255, 0, 0.3); } 50% { background-color: rgba(0, 255, 0, 0.6); } }
+
+        .cell:hover { opacity: 0.9; }
+        
+        .corner-label {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Marck Script', cursive;
+            font-weight: 600;
+            color: #0050c8;
+            pointer-events: none;
+            white-space: nowrap;
+            line-height: 1;
+            z-index: 1;
+        }
+
+        /* Угловые подписи идут по внешнему периметру доски. */
+        .corner-label.adia-cell {
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            font-size: calc(var(--cell-size) * 0.28);
+        }
+
+        /* «Қаздойбы» занимает две белые клетки — горизонтально или вертикально. */
+        .corner-label.kaz-two-horizontal {
+            left: 0;
+            top: 0;
+            width: 200%;
+            height: 100%;
+            font-size: calc(var(--cell-size) * 0.31);
+            letter-spacing: -0.02em;
+        }
+
+        .corner-label.kaz-two-vertical {
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 200%;
+            font-size: calc(var(--cell-size) * 0.31);
+            letter-spacing: -0.02em;
+        }
+
+        /*
+           Направления считаются относительно человека, который смотрит на экран.
+           Поэтому поворот противоположен прежней трактовке «относительно доски».
+           Поворачивается только текст, область надписи остаётся в тех же клетках.
+        */
+        .corner-label-text {
+            display: inline-block;
+            line-height: 1;
+            transform-origin: center center;
+        }
+        .corner-label.face-up    .corner-label-text { transform: rotate(180deg); }
+        .corner-label.face-right .corner-label-text { transform: rotate(-90deg); }
+        .corner-label.face-down  .corner-label-text { transform: rotate(0deg); }
+        .corner-label.face-left  .corner-label-text { transform: rotate(90deg); }
+        
+        .piece {
+            width: calc(var(--cell-size) * 0.8); height: calc(var(--cell-size) * 0.8); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; cursor: pointer; transition: transform 0.2s, opacity 0.3s;
+            font-size: 1em; box-shadow: 0 3px 0 rgba(0,0,0,0.4), 0 6px 10px rgba(0,0,0,0.5);
+            border: 2px solid rgba(255,255,255,0.6); z-index: 2;
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+
+        /* ===== ПЛАВНАЯ АНИМАЦИЯ ВЗЯТИЯ ===== */
+        .piece.capture-target {
+            z-index: 8;
+            pointer-events: none;
+            animation: captureWarning 0.32s ease-in-out both !important;
+        }
+
+        .piece.captured-vanish {
+            z-index: 9;
+            pointer-events: none;
+            animation: capturedVanish 0.46s cubic-bezier(0.22, 0.8, 0.35, 1) forwards !important;
+        }
+
+        .piece.captured-hidden {
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            animation: none !important;
+        }
+
+        .cell.capture-impact {
+            z-index: 4;
+            animation: captureCellFlash 0.72s ease-out;
+        }
+
+        .cell.capture-impact::before {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 7;
+            animation: captureRing 0.72s ease-out forwards;
+        }
+
+        @keyframes captureWarning {
+            0%   { transform: scale(1); filter: brightness(1); }
+            40%  { transform: scale(1.24); filter: brightness(1.55); }
+            72%  { transform: scale(0.93); filter: brightness(1.18); }
+            100% { transform: scale(1.10); filter: brightness(1.38); }
+        }
+
+        @keyframes capturedVanish {
+            0%   { transform: scale(1.10) rotate(0deg); opacity: 1; filter: brightness(1.35); }
+            35%  { transform: scale(1.28) rotate(8deg); opacity: 1; filter: brightness(1.75); }
+            100% { transform: scale(0.05) rotate(24deg); opacity: 0; filter: brightness(2); }
+        }
+
+        @keyframes captureCellFlash {
+            0%   { box-shadow: inset 0 0 0 rgba(255,215,0,0); }
+            35%  { box-shadow: inset 0 0 24px rgba(255,215,0,0.95); }
+            100% { box-shadow: inset 0 0 0 rgba(255,215,0,0); }
+        }
+
+        @keyframes captureRing {
+            0%   { box-shadow: 0 0 0 0 rgba(255,215,0,0.95); opacity: 1; }
+            100% { box-shadow: 0 0 0 18px rgba(255,215,0,0); opacity: 0; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .piece.capture-target,
+            .piece.captured-vanish,
+            .cell.capture-impact,
+            .cell.capture-impact::before {
+                animation-duration: 0.01ms !important;
+            }
+        }
+
+        
+        .piece:hover { transform: translateY(-2px) scale(1.08); }
+        .piece.blue { background: radial-gradient(circle at 30% 25%, #9fd6ff, #0060d6); border-color: #d6ecff; color: #ffffff; }
+        .piece.black { background: radial-gradient(circle at 30% 25%, #555555, #050505); border-color: #b0b0b0; color: #ffffff; }
+        .piece.red { background: radial-gradient(circle at 30% 25%, #ffb3b3, #d00000); border-color: #ffe0e0; color: #ffffff; }
+        .piece.white { background: radial-gradient(circle at 30% 25%, #ffffff, #d0d0d0); border-color: #aaaaaa; color: #222; }
+        .piece.sultan {
+            font-size: 1.3em; border: 3px solid rgb(255, 215, 0);
+            box-shadow: 0 3px 0 rgba(0,0,0,0.4), 0 6px 10px rgba(0,0,0,0.5), 0 0 18px rgba(255, 215, 0, 0.9);
+            animation: glow 1.5s infinite alternate;
+        }
+        @keyframes glow { from { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); } to { box-shadow: 0 0 25px rgba(255, 215, 0, 1); } }
+
+        .history-panel {
+            background: #fdfdfd; width: min(100%, 300px); border-radius: 15px; padding: clamp(12px, 2vw, 20px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 3px solid #667eea;
+            max-height: 520px; display: flex; flex-direction: column;
+        }
+        .history-panel h3 { color: #667eea; margin-bottom: 15px; text-align: center; font-size: 1.3em; }
+        .history-list { list-style: none; overflow-y: auto; flex-grow: 1; padding-right: 5px; }
+        .history-list::-webkit-scrollbar { width: 6px; }
+        .history-list::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .history-list li {
+            padding: 8px; border-bottom: 1px solid #eee; font-size: 1.05em;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .history-list li span.pl-color { font-weight: bold; border-radius: 5px; padding: 2px 5px; color: white; font-size: 0.9em; }
+        .history-list li span.bg-blue { background: #0060d6; }
+        .history-list li span.bg-black { background: #050505; }
+        .history-list li span.bg-red { background: #d00000; }
+        .history-list li span.bg-white { background: #bdbdbd; color: #000; }
+
+        .controls { text-align: center; margin-top: clamp(16px, 3vw, 30px); width: 100%; }
+        .status {
+            font-size: clamp(1rem, 3vw, 1.4rem); color: #667eea; font-weight: bold; margin-bottom: clamp(14px, 3vw, 25px);
+            padding: clamp(12px, 2.5vw, 20px); background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px; border: 3px solid #667eea; transition: all 0.3s;
+        }
+        .status.ai-thinking { animation: pulse 1s infinite; color: #ff6b6b !important; border-color: #ff6b6b; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        
+        .btn {
+            padding: clamp(11px, 2vw, 15px) clamp(16px, 3vw, 25px); margin: clamp(4px, 1vw, 8px); background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;
+            font-size: clamp(0.95rem, 2.5vw, 1.1rem); transition: all 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102, 126, 234, 0.5); }
+        .btn-undo { background: linear-gradient(135deg, #f5576c 0%, #d63447 100%); }
+        .btn-undo:hover { box-shadow: 0 8px 20px rgba(214, 52, 71, 0.5); }
+        .btn:disabled { background: #ccc; cursor: not-allowed; box-shadow: none; transform: none; }
+        
+
+        /* ===== ONLINE / PUBLIC SERVER LOBBY ===== */
+        .network-panel {
+            max-width: 800px;
+            margin: 0 auto 18px;
+            padding: 16px;
+            border: 3px solid #667eea;
+            border-radius: 15px;
+            background: #f8f9ff;
+        }
+        .network-panel h2 { color:#667eea; text-align:center; margin-bottom:12px; }
+        .network-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:center; }
+        .network-row input {
+            flex: 1 1 180px;
+            min-width: 160px;
+            padding: 12px;
+            border: 2px solid #667eea;
+            border-radius: 10px;
+            font-size: 1rem;
+            text-transform: uppercase;
+        }
+        .network-btn {
+            padding: 12px 16px;
+            border: 0;
+            border-radius: 10px;
+            cursor:pointer;
+            font-weight:700;
+            font-size: 1rem;
+            color:#fff;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .network-btn.secondary { background: linear-gradient(135deg,#43a047,#1b5e20); }
+        .network-btn.copy { background: linear-gradient(135deg,#ff9800,#ef6c00); }
+        .network-btn:disabled { background:#aaa; cursor:not-allowed; }
+        .network-status {
+            margin-top: 12px;
+            padding: 10px;
+            background: white;
+            border-radius: 10px;
+            text-align: center;
+            font-weight: 700;
+            line-height: 1.45;
+        }
+        .network-help { margin-top:8px; text-align:center; color:#555; font-size:.92rem; }
+        .network-code { font-size:1.25rem; color:#d63447; letter-spacing:.08em; }
+
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>🎮 Адия Қаздойбы</h1>
+    <p class="subtitle">Қазақ дойбысы</p>
+    
+
+    <div class="network-panel" id="networkPanel">
+        <h2>🌐 Онлайн ойын / Публичный сервер</h2>
+        <div class="network-row">
+            <button class="network-btn" id="btnCreateRoom" type="button">➕ Создать комнату</button>
+            <input id="roomCodeInput" maxlength="6" placeholder="Код комнаты, например ABC123">
+            <button class="network-btn secondary" id="btnJoinRoom" type="button">🚪 Войти</button>
+            <button class="network-btn copy" id="btnCopyInvite" type="button" style="display:none">🔗 Копировать ссылку</button>
+        </div>
+        <div class="network-status" id="networkStatus">
+            Для игры 2×2 выберите ниже, кто человек, а кто ИИ. Затем создатель нажимает «Создать комнату».
+        </div>
+        <div class="network-help">
+            Команды: 🔵 Көк + ⚫ Қара против 🔴 Қызыл + ⚪ Ақ. ИИ может занимать любой цвет.
+        </div>
+    </div>
+
+    <div class="setup" id="setup">
+        <h2>⚙️ Ойын параметрлері</h2>
+
+        <div class="player-config mode-config">
+            <label>🎯 Ойын режимі:</label>
+            <select id="gameMode">
+                <option value="ffa" selected>👤 Жеке ойын</option>
+                <option value="teams">🤝 Командалық ойын</option>
+            </select>
+        </div>
+        <div class="player-config">
+            <label>🔵 Көк ойыншы:</label>
+            <select id="blueType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 Компьютер (Жеңіл)</option><option value="ai-medium">🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+        </div>
+        <div class="player-config">
+            <label>⚫ Қара ойыншы:</label>
+            <select id="blackType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 Компьютер (Жеңіл)</option><option value="ai-medium" selected>🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+        </div>
+        <div class="player-config">
+            <label>🔴 Қызыл ойыншы:</label>
+            <select id="redType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 Компьютер (Жеңіл)</option><option value="ai-medium" selected>🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+        </div>
+        <div class="player-config">
+            <label>⚪ Ақ ойыншы:</label>
+            <select id="whiteType"><option value="human">👤 Адам</option><option value="ai-easy" selected>🤖 Компьютер (Жеңіл)</option><option value="ai-medium">🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+        </div>
+        
+        <div class="setup-actions">
+            <button class="btn-start" onclick="startGame(false)">🎮 Жаңа ойын</button>
+            <button class="btn-load" id="btnLoadGame" onclick="startGame(true)">💾 Жалғастыру</button>
+        </div>
+    </div>
+
+    <div class="game" id="game">
+        <div class="players-info" id="playersInfo"></div>
+        <div class="game-area">
+            <div class="board-wrapper">
+                <div class="board-container">
+                    <div class="board-labels-top" id="topLabels"></div>
+                    <div class="board-with-left-labels">
+                        <div class="board-labels-left" id="leftLabels"></div>
+                        <div class="board" id="board"></div>
+                        <div class="board-labels-right" id="rightLabels"></div>
+                    </div>
+                    <div class="board-labels-bottom" id="bottomLabels"></div>
+                </div>
+            </div>
+            
+            <div class="history-panel">
+                <h3>📜 Жүрістер тарихы</h3>
+                <ul class="history-list" id="historyList"></ul>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="status" id="status">Кезек: Көк</div>
+            <button class="btn" onclick="restartGame()">🔄 Қайта бастау</button>
+            <button class="btn btn-undo" id="btnUndo" onclick="undoMove()">↩ Болдырмау</button>
+            <button class="btn" id="btnHint" onclick="showHint()">💡 Кеңес</button>
+            <button class="btn" onclick="showRules()">📖 Ережелер</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== ИГРОВЫЕ КОНСТАНТЫ И НАСТРОЙКИ ====================
+const BOARD_ROWS = 12; const BOARD_COLS = 12;
+const ROW_MAP = {}; for (let i = 1; i <= BOARD_ROWS; i++) { ROW_MAP[i] = BOARD_ROWS - i; }
+const COL_MAP = { 'A': 0, 'B': 1, 'C': 2, 'D': 3, 'E': 4, 'F': 5, 'G': 6, 'H': 7, 'N': 8, 'P': 9, 'S': 10, 'T': 11 };
+const colLabels = Object.keys(COL_MAP);
+const rowLabels = Array.from({length: BOARD_ROWS}, (_, i) => BOARD_ROWS - i);
+const OOB_SQUARES = [ [ROW_MAP[1], COL_MAP['A']], [ROW_MAP[2], COL_MAP['A']], [ROW_MAP[1], COL_MAP['B']], [ROW_MAP[1], COL_MAP['S']], [ROW_MAP[1], COL_MAP['T']], [ROW_MAP[2], COL_MAP['T']], [ROW_MAP[12], COL_MAP['A']], [ROW_MAP[11], COL_MAP['A']], [ROW_MAP[12], COL_MAP['B']], [ROW_MAP[12], COL_MAP['S']], [ROW_MAP[11], COL_MAP['T']], [ROW_MAP[12], COL_MAP['T']] ];
+const STARTING_POSITIONS = {
+    'blue': [ [ROW_MAP[1], COL_MAP['C']], [ROW_MAP[1], COL_MAP['E']], [ROW_MAP[1], COL_MAP['G']], [ROW_MAP[1], COL_MAP['N']], [ROW_MAP[2], COL_MAP['D']], [ROW_MAP[2], COL_MAP['F']], [ROW_MAP[2], COL_MAP['H']], [ROW_MAP[2], COL_MAP['P']] ],
+    'black': [ [ROW_MAP[4], COL_MAP['T']], [ROW_MAP[6], COL_MAP['T']], [ROW_MAP[8], COL_MAP['T']], [ROW_MAP[10], COL_MAP['T']], [ROW_MAP[3], COL_MAP['S']], [ROW_MAP[5], COL_MAP['S']], [ROW_MAP[7], COL_MAP['S']], [ROW_MAP[9], COL_MAP['S']] ],
+    'red': [ [ROW_MAP[12], COL_MAP['P']], [ROW_MAP[12], COL_MAP['H']], [ROW_MAP[12], COL_MAP['F']], [ROW_MAP[12], COL_MAP['D']], [ROW_MAP[11], COL_MAP['N']], [ROW_MAP[11], COL_MAP['G']], [ROW_MAP[11], COL_MAP['E']], [ROW_MAP[11], COL_MAP['C']] ],
+    'white': [ [ROW_MAP[3], COL_MAP['A']], [ROW_MAP[5], COL_MAP['A']], [ROW_MAP[7], COL_MAP['A']], [ROW_MAP[9], COL_MAP['A']], [ROW_MAP[4], COL_MAP['B']], [ROW_MAP[6], COL_MAP['B']], [ROW_MAP[8], COL_MAP['B']], [ROW_MAP[10], COL_MAP['B']] ]
+};
+const PAWN_FORWARD_MOVES = { 'blue': [[-1, -1], [-1, 1]], 'black': [[-1, -1], [1, -1]], 'red': [[1, -1], [1, 1]], 'white': [[-1, 1], [1, 1]] };
+const ALL_DIRECTIONS = [[-1,-1],[-1,1],[1,-1],[1,1]];
+const PROMOTION_LINES = { 'blue':0, 'black':0, 'red':11, 'white':11 };
+const TURN_ORDER = ['blue','black','red','white'];
+const PLAYER_LABELS = { blue: 'Көк', black: 'Қара', red: 'Қызыл', white: 'Ақ' };
+
+const TEAM_MAP = {
+    blue: 'blue-black',
+    black: 'blue-black',
+    red: 'red-white',
+    white: 'red-white'
+};
+const TEAM_LABELS = {
+    'blue-black': 'Көк + Қара',
+    'red-white': 'Қызыл + Ақ'
+};
+
+// Текущий режим нужен общим функциям генерации ходов и AI-поиска.
+// При загрузке сохранения он синхронизируется с game.gameMode.
+let CURRENT_GAME_MODE = 'ffa';
+
+function isTeamMode() {
+    return CURRENT_GAME_MODE === 'teams';
+}
+
+function getTeamId(player) {
+    return TEAM_MAP[player] || player;
+}
+
+function areAllies(playerA, playerB) {
+    if (playerA === playerB) return true;
+    return isTeamMode() && getTeamId(playerA) === getTeamId(playerB);
+}
+
+function areEnemies(playerA, playerB) {
+    return !areAllies(playerA, playerB);
+}
+
+function getActiveSides(activePlayers) {
+    if (!isTeamMode()) return [...activePlayers];
+    return [...new Set(activePlayers.map(getTeamId))];
+}
+
+function isTerminalActivePlayers(activePlayers) {
+    return getActiveSides(activePlayers).length <= 1;
+}
+
+function getWinnerLabel(activePlayers) {
+    const sides = getActiveSides(activePlayers);
+    if (sides.length !== 1) return null;
+    return isTeamMode() ? TEAM_LABELS[sides[0]] : sides[0];
+}
+
+function getTeamMembers(player) {
+    if (!isTeamMode()) return [player];
+    const teamId = getTeamId(player);
+    return TURN_ORDER.filter(p => getTeamId(p) === teamId);
+}
+
+function getPartner(player) {
+    if (!isTeamMode()) return null;
+    return getTeamMembers(player).find(p => p !== player) || null;
+}
+
+class Piece {
+    constructor(row,col,player){ this.row=row; this.col=col; this.player=player; this.isSultan=false; }
+    promote(){ this.isSultan=true; }
+}
+
+// ==================== AI CONSTANTS & EVALUATION WEIGHTS ====================
+const EVAL_WEIGHTS = {
+    PAWN_VALUE: 100,
+    SULTAN_VALUE: 320,
+    ADVANCEMENT_WEIGHT: 8,
+    PROMOTION_NEAR_BONUS: 50,
+    CENTER_CONTROL_WEIGHT: 8,
+    EDGE_SAFETY_WEIGHT: 10,
+    PROTECTED_BONUS: 12,
+    PAWN_THREAT_PENALTY: -50,
+    SULTAN_THREAT_PENALTY: -220,
+    CAPTURE_BASE_BONUS: 35,
+    CHAIN_CAPTURE_BONUS: 90,
+    MOBILITY_WEIGHT: 4,
+    OPPONENT_PAWN_WEIGHT: 95,
+    OPPONENT_SULTAN_WEIGHT: 300
+};
+
+// Дополнительная оценка только для командного режима.
+// Оба цвета одной команды получают одну общую цель.
+const TEAM_AI_WEIGHTS = {
+    BOTH_MEMBERS_ALIVE_BONUS: 420,
+    MEMBER_ALIVE_BONUS: 260,
+    WEAKEST_MEMBER_PIECE: 52,
+    MEMBER_NO_MOVES_PENALTY: 240,
+    THREATENED_PAWN: 150,
+    THREATENED_SULTAN: 430,
+    ATTACK_PRESSURE_FACTOR: 0.38,
+    DEFENSE_PRESSURE_FACTOR: 1.18,
+    CROSS_COLOR_SUPPORT: 14,
+    SAVE_PARTNER_ATTACKER_BONUS: 5200,
+    SUPPORT_THREATENED_PARTNER_BONUS: 1250,
+    SUPPORT_PARTNER_BONUS: 280,
+    ABANDON_PARTNER_SUPPORT_PENALTY: 360
+};
+
+// Глубина по запросу пользователя:
+// 2^1.5 = 2.828... -> 3 полухода
+// 2^2.5 = 5.656... -> 6 полуходов
+// 2^4   = 16       -> 16 полуходов
+//
+// Для большой глубины используется селективный MaxN:
+// все корневые ходы проверяются, а внутри дерева остаются
+// наиболее перспективные ветви. Это позволяет реально доходить
+// до 16 уровней без полного перебора миллионов/миллиардов позиций.
+const AI_SEARCH_CONFIG = {
+    easy: {
+        maxDepth: Math.round(Math.pow(2, 1.5)),   // 3
+        timeLimitMs: 450,
+        randomMargin: 28,
+        beamSchedule: [
+            { maxPly: 99, width: 4 }
+        ]
+    },
+    medium: {
+        maxDepth: Math.round(Math.pow(2, 2.5)),   // 6
+        timeLimitMs: 1800,
+        randomMargin: 8,
+        beamSchedule: [
+            { maxPly: 3, width: 4 },
+            { maxPly: 99, width: 2 }
+        ]
+    },
+    hard: {
+        maxDepth: Math.round(Math.pow(2, 4)),     // 16
+        timeLimitMs: 6500,
+        randomMargin: 0,
+        beamSchedule: [
+            { maxPly: 4, width: 3 },
+            { maxPly: 8, width: 2 },
+            { maxPly: 99, width: 1 }
+        ]
+    }
+};
+
+const PLAYER_INDEX = { blue: 0, black: 1, red: 2, white: 3 };
+const PLAYER_HASH_CODE = { blue: 'U', black: 'K', red: 'R', white: 'W' };
+const AI_TIMEOUT = { timeout: true };
+const aiNow = () => (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ЛОГИКИ ИИ ====================
+function isValidPos(r, c) { 
+    return r >= 0 && r < BOARD_ROWS && c >= 0 && c < BOARD_COLS && !OOB_SQUARES.some(([rr, cc]) => rr === r && cc === c); 
+}
+
+function getPieceBoard(board, r, c) { 
+    return isValidPos(r, c) ? board[r][c] : null; 
+}
+
+function findCapturesForPieceBoard(board, piece, capturedInSeq) {
+    const moves = {};
+    const dfs = (r, c, path, capSet) => {
+        let found = false;
+        if (piece.isSultan) {
+            for (const [dr, dc] of ALL_DIRECTIONS) {
+                let jumped = null;
+                for (let i = 1; i < BOARD_ROWS; i++) {
+                    const nr = r + i * dr, nc = c + i * dc;
+                    if (!isValidPos(nr, nc)) break;
+                    const pc = (nr === piece.row && nc === piece.col) ? null : getPieceBoard(board, nr, nc);
+                    if (pc) {
+                        const k = `${nr},${nc}`;
+                        if (capSet.has(k) || areAllies(pc.player, piece.player)) break;
+                        if (!jumped) { jumped = [nr, nc]; continue; }
+                        if (jumped) break;
+                    }
+                    if (jumped) {
+                        found = true;
+                        const newSet = new Set(capSet); newSet.add(`${jumped[0]},${jumped[1]}`);
+                        dfs(nr, nc, [...path, [nr, nc]], newSet);
+                    }
+                }
+            }
+        } else {
+            for (const [dr, dc] of ALL_DIRECTIONS) {
+                const jr = r + dr, jc = c + dc; const lr = r + 2 * dr, lc = c + 2 * dc;
+                if (!isValidPos(lr, lc)) continue;
+                const jp = getPieceBoard(board, jr, jc);
+                const lp = (lr === piece.row && lc === piece.col) ? null : getPieceBoard(board, lr, lc);
+                const jumpedKey = `${jr},${jc}`;
+                if (jp && areEnemies(jp.player, piece.player) && !capSet.has(jumpedKey) && !lp) {
+                    found = true;
+                    const newSet = new Set(capSet); newSet.add(jumpedKey);
+                    dfs(lr, lc, [...path, [lr, lc]], newSet);
+                }
+            }
+        }
+        if (!found && path.length > 1) {
+            const last = path[path.length - 1];
+            const key = `${last[0]},${last[1]}`;
+
+            const allJumped = Array.from(capSet)
+                .filter(s => !capturedInSeq.has(s))
+                .map(s => s.split(',').map(Number));
+
+            // Полный последовательный маршрут приземлений после каждого взятия.
+            // Свойство добавляется прямо к массиву, поэтому существующий код,
+            // использующий jumped.length и перебор jumped, продолжает работать.
+            allJumped.path = path.slice(1).map(([pr, pc]) => [pr, pc]);
+
+            if (!(key in moves) || allJumped.length > moves[key].length) {
+                moves[key] = allJumped;
+            }
+        }
+    };
+    dfs(piece.row, piece.col, [[piece.row, piece.col]], new Set([...capturedInSeq]));
+    return moves;
+}
+
+function findSimpleMovesForPieceBoard(board, piece) {
+    const moves = {};
+    if (piece.isSultan) {
+        for (const [dr, dc] of ALL_DIRECTIONS) {
+            for (let i = 1; i < BOARD_ROWS; i++) {
+                const r = piece.row + i * dr, c = piece.col + i * dc;
+                if (!isValidPos(r, c)) break;
+                if (getPieceBoard(board, r, c) === null) moves[`${r},${c}`] = []; else break;
+            }
+        }
+    } else {
+        for (const [dr, dc] of PAWN_FORWARD_MOVES[piece.player]) {
+            const r = piece.row + dr, c = piece.col + dc;
+            if (isValidPos(r, c) && getPieceBoard(board, r, c) === null) { moves[`${r},${c}`] = []; }
+        }
+    }
+    return moves;
+}
+
+function canPieceBeCaptured(board, piece) {
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const p = board[r][c];
+            if (p && areEnemies(p.player, piece.player)) {
+                const caps = findCapturesForPieceBoard(board, p, new Set());
+                for (const jumped of Object.values(caps)) {
+                    for (const [jr, jc] of jumped) { if (jr === piece.row && jc === piece.col) return true; }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function isPieceProtected(board, piece) {
+    if (piece.row === 0 || piece.row === 11 || piece.col === 0 || piece.col === 11) return true;
+    const rearDirs = {
+        'blue': [[1, -1], [1, 1]],
+        'black': [[-1, 1], [1, 1]],
+        'red': [[-1, -1], [-1, 1]],
+        'white': [[-1, -1], [1, -1]]
+    }[piece.player] || ALL_DIRECTIONS;
+
+    for (const [dr, dc] of rearDirs) {
+        const nr = piece.row + dr, nc = piece.col + dc;
+        if (isValidPos(nr, nc)) {
+            const neighbor = board[nr][nc];
+            if (neighbor && areAllies(neighbor.player, piece.player)) return true;
+        }
+    }
+    return false;
+}
+
+function getAllPossibleMovesForPlayer(board, player) {
+    const moves = []; 
+    let maxCapCount = 0;
+
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const p = board[r][c];
+            if (p && p.player === player) {
+                const caps = findCapturesForPieceBoard(board, p, new Set());
+                for (const [landKey, jumped] of Object.entries(caps)) {
+                    if (jumped.length > maxCapCount) { maxCapCount = jumped.length; }
+                    const [nr, nc] = landKey.split(',').map(Number);
+                    moves.push({
+                        from: [r, c],
+                        to: [nr, nc],
+                        captures: jumped,
+                        path: jumped.path ? jumped.path.map(([pr, pc]) => [pr, pc]) : [[nr, nc]],
+                        piece: p
+                    });
+                }
+            }
+        }
+    }
+
+    if (maxCapCount > 0) {
+        return moves.filter(m => m.captures.length === maxCapCount);
+    }
+
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const p = board[r][c];
+            if (p && p.player === player) {
+                const simple = findSimpleMovesForPieceBoard(board, p);
+                for (const key of Object.keys(simple)) {
+                    const [nr, nc] = key.split(',').map(Number);
+                    moves.push({ from: [r, c], to: [nr, nc], captures: [], piece: p });
+                }
+            }
+        }
+    }
+    return moves;
+}
+
+function cloneBoard(board) {
+    const newBoard = Array.from({length: BOARD_ROWS}, () => Array(BOARD_COLS).fill(null));
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const p = board[r][c];
+            if (p) { const np = new Piece(r, c, p.player); np.isSultan = p.isSultan; newBoard[r][c] = np; }
+        }
+    }
+    return newBoard;
+}
+
+function applyMoveToBoard(board, move, playerCounts) {
+    const newBoard = cloneBoard(board); 
+    const newCounts = {...playerCounts};
+    const [fr, fc] = move.from; const [tr, tc] = move.to;
+    const p = newBoard[fr][fc]; 
+    if (!p) return {board: newBoard, counts: newCounts};
+    
+    newBoard[fr][fc] = null; p.row = tr; p.col = tc; newBoard[tr][tc] = p;
+    for (const [cr, cc] of move.captures) {
+        const captured = newBoard[cr][cc];
+        if (captured) { newCounts[captured.player]--; newBoard[cr][cc] = null; }
+    }
+    if (!p.isSultan) {
+        const pl = p.player;
+        if (((pl === 'blue' || pl === 'red') && p.row === PROMOTION_LINES[pl]) ||
+            ((pl === 'black' || pl === 'white') && p.col === PROMOTION_LINES[pl])) { p.isSultan = true; }
+    }
+    return {board: newBoard, counts: newCounts};
+}
+
+function getNextActivePlayer(turnIndex, activePlayers) {
+    let next = (turnIndex + 1) % TURN_ORDER.length; let safety = 0;
+    while (safety < 10) {
+        const candidate = TURN_ORDER[next];
+        if (activePlayers.includes(candidate)) return {player: candidate, index: next};
+        next = (next + 1) % TURN_ORDER.length; safety++;
+    }
+    return null;
+}
+
+function getBoardHash(board, turnIndex) {
+    let hash = turnIndex + ":";
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const p = board[r][c];
+            if (p) {
+                // Уникальный код цвета: раньше blue и black оба давали "b",
+                // что создавало ложные совпадения в таблице транспозиций.
+                hash += `${r},${c},${PLAYER_HASH_CODE[p.player]}${p.isSultan ? 'S' : 'P'};`;
+            }
+        }
+    }
+    return hash;
+}
+
+// ==================== ОЦЕНОЧНАЯ ФУНКЦИЯ (EVALUATE POSITION) ====================
+function evaluatePosition(board, aiPlayer, playerCounts) {
+    const friendlyPlayers = getTeamMembers(aiPlayer);
+    const enemyPlayers = TURN_ORDER.filter(p => !areAllies(p, aiPlayer));
+
+    const friendlyCount = friendlyPlayers.reduce((sum, p) => sum + (playerCounts[p] || 0), 0);
+    const enemyCount = enemyPlayers.reduce((sum, p) => sum + (playerCounts[p] || 0), 0);
+
+    if (friendlyCount <= 0) return -100000;
+    if (enemyCount <= 0) return 100000;
+
+    let score = 0;
+
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const p = board[r][c];
+            if (!p) continue;
+
+            const isFriendly = areAllies(p.player, aiPlayer);
+            const sign = isFriendly ? 1 : -1;
+
+            const baseVal = p.isSultan
+                ? (isFriendly ? EVAL_WEIGHTS.SULTAN_VALUE : EVAL_WEIGHTS.OPPONENT_SULTAN_WEIGHT)
+                : (isFriendly ? EVAL_WEIGHTS.PAWN_VALUE : EVAL_WEIGHTS.OPPONENT_PAWN_WEIGHT);
+
+            score += sign * baseVal;
+
+            if (!p.isSultan) {
+                const advancement = getAdvancement(p);
+                score += sign * (advancement * EVAL_WEIGHTS.ADVANCEMENT_WEIGHT);
+                if (advancement >= 9) {
+                    score += sign * EVAL_WEIGHTS.PROMOTION_NEAR_BONUS;
+                }
+            }
+
+            if (r >= 4 && r <= 7 && c >= 4 && c <= 7) {
+                score += sign * EVAL_WEIGHTS.CENTER_CONTROL_WEIGHT;
+            }
+
+            if (r === 0 || r === 11 || c === 0 || c === 11) {
+                score += sign * EVAL_WEIGHTS.EDGE_SAFETY_WEIGHT;
+            }
+
+            if (isPieceProtected(board, p)) {
+                score += sign * EVAL_WEIGHTS.PROTECTED_BONUS;
+            }
+
+            if (canPieceBeCaptured(board, p)) {
+                const threatPenalty = p.isSultan
+                    ? EVAL_WEIGHTS.SULTAN_THREAT_PENALTY
+                    : EVAL_WEIGHTS.PAWN_THREAT_PENALTY;
+                score += sign * threatPenalty;
+            }
+        }
+    }
+
+    // В командном режиме компьютер оценивает возможности обоих союзников.
+    for (const friendly of friendlyPlayers) {
+        if ((playerCounts[friendly] || 0) <= 0) continue;
+
+        const friendlyMoves = getAllPossibleMovesForPlayer(board, friendly);
+        score += friendlyMoves.length * EVAL_WEIGHTS.MOBILITY_WEIGHT;
+
+        if (friendlyMoves.length > 0 && friendlyMoves[0].captures && friendlyMoves[0].captures.length > 0) {
+            const maxCapt = friendlyMoves[0].captures.length;
+            score += maxCapt * EVAL_WEIGHTS.CAPTURE_BASE_BONUS;
+            if (maxCapt > 1) score += EVAL_WEIGHTS.CHAIN_CAPTURE_BONUS;
+        }
+
+        score += (playerCounts[friendly] || 0) * 15;
+    }
+
+    return score;
+}
+
+// ==================== MAXN ДЛЯ 4 ИГРОКОВ ====================
+// В отличие от обычного Minimax, каждый игрок максимизирует СВОЮ
+// компоненту оценки. Это лучше соответствует игре "каждый сам за себя".
+
+function getAdvancement(piece) {
+    if (piece.player === 'blue') return 11 - piece.row;
+    if (piece.player === 'red') return piece.row;
+    if (piece.player === 'black') return 11 - piece.col;
+    if (piece.player === 'white') return piece.col;
+    return 0;
+}
+
+function teamThreatPieceValue(piece) {
+    return piece && piece.isSultan
+        ? TEAM_AI_WEIGHTS.THREATENED_SULTAN
+        : TEAM_AI_WEIGHTS.THREATENED_PAWN;
+}
+
+// Анализируем реальные допустимые взятия. Одна и та же цель считается один раз.
+function getCapturePressureFromLegalMoves(board, legalByPlayer, attackers, targets) {
+    const targetSet = new Set(targets);
+    const victims = new Map();
+
+    for (const attacker of attackers) {
+        const legal = legalByPlayer[attacker] || [];
+        for (const move of legal) {
+            if (!move.captures || move.captures.length === 0) continue;
+            for (const [r, c] of move.captures) {
+                const victim = board[r][c];
+                if (!victim || !targetSet.has(victim.player)) continue;
+                const key = `${r},${c}`;
+                const value = teamThreatPieceValue(victim);
+                if (!victims.has(key) || victims.get(key) < value) victims.set(key, value);
+            }
+        }
+    }
+
+    let value = 0;
+    for (const v of victims.values()) value += v;
+    return { value, victims };
+}
+
+function countCrossColorSupport(board, members) {
+    const memberSet = new Set(members);
+    let links = 0;
+
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const p = board[r][c];
+            if (!p || !memberSet.has(p.player)) continue;
+
+            for (const [dr, dc] of ALL_DIRECTIONS) {
+                const nr = r + dr, nc = c + dc;
+                if (!isValidPos(nr, nc)) continue;
+                const q = board[nr][nc];
+                if (q && memberSet.has(q.player) && q.player !== p.player) links++;
+            }
+        }
+    }
+
+    return links / 2;
+}
+
+// Быстрый анализ непосредственных угроз используется в сортировке ходов,
+// чтобы защитные действия не отбрасывались beam-search слишком рано.
+function getImmediateThreatInfo(board, attackerPlayers, targetPlayers) {
+    const attackersSet = new Set(attackerPlayers);
+    const targetsSet = new Set(targetPlayers);
+    const threateningAttackers = new Set();
+    const threatenedVictims = new Set();
+
+    const register = (attacker, victim) => {
+        if (!victim || !targetsSet.has(victim.player)) return;
+        threateningAttackers.add(`${attacker.row},${attacker.col}`);
+        threatenedVictims.add(`${victim.row},${victim.col}`);
+    };
+
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const attacker = board[r][c];
+            if (!attacker || !attackersSet.has(attacker.player)) continue;
+
+            if (!attacker.isSultan) {
+                for (const [dr, dc] of ALL_DIRECTIONS) {
+                    const vr = r + dr, vc = c + dc;
+                    const lr = r + 2 * dr, lc = c + 2 * dc;
+                    if (!isValidPos(lr, lc)) continue;
+                    const victim = getPieceBoard(board, vr, vc);
+                    if (victim && targetsSet.has(victim.player) && getPieceBoard(board, lr, lc) === null) {
+                        register(attacker, victim);
+                    }
+                }
+            } else {
+                for (const [dr, dc] of ALL_DIRECTIONS) {
+                    let victim = null;
+                    for (let step = 1; step < BOARD_ROWS; step++) {
+                        const nr = r + step * dr, nc = c + step * dc;
+                        if (!isValidPos(nr, nc)) break;
+                        const q = getPieceBoard(board, nr, nc);
+
+                        if (!victim) {
+                            if (!q) continue;
+                            if (!targetsSet.has(q.player)) break;
+                            victim = q;
+                            continue;
+                        }
+
+                        if (q) break;
+                        register(attacker, victim);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    return { threateningAttackers, threatenedVictims };
+}
+
+function moveTouchesPartner(board, row, col, partner) {
+    if (!partner) return false;
+    for (const [dr, dc] of ALL_DIRECTIONS) {
+        const nr = row + dr, nc = col + dc;
+        if (!isValidPos(nr, nc)) continue;
+        const q = board[nr][nc];
+        if (q && q.player === partner) return true;
+    }
+    return false;
+}
+
+function moveSupportsThreatenedPartner(board, row, col, partner, threatenedVictims) {
+    if (!partner || threatenedVictims.size === 0) return false;
+    for (const [dr, dc] of ALL_DIRECTIONS) {
+        const nr = row + dr, nc = col + dc;
+        if (threatenedVictims.has(`${nr},${nc}`)) {
+            const q = getPieceBoard(board, nr, nc);
+            if (q && q.player === partner) return true;
+        }
+    }
+    return false;
+}
+
+function evaluateAllPlayersFast(board, playerCounts, activePlayers) {
+    const scores = [0, 0, 0, 0];
+    const ownPositional = [0, 0, 0, 0];
+    const activeSet = new Set(activePlayers);
+
+    if (isTerminalActivePlayers(activePlayers)) {
+        const winner = getWinnerLabel(activePlayers);
+
+        for (const p of TURN_ORDER) {
+            const idx = PLAYER_INDEX[p];
+            if (!winner) {
+                scores[idx] = -1000000;
+            } else if (isTeamMode()) {
+                scores[idx] = TEAM_LABELS[getTeamId(p)] === winner ? 1000000 : -1000000;
+            } else {
+                scores[idx] = p === winner ? 1000000 : -1000000;
+            }
+        }
+        return scores;
+    }
+
+    for (let r = 0; r < BOARD_ROWS; r++) {
+        for (let c = 0; c < BOARD_COLS; c++) {
+            const piece = board[r][c];
+            if (!piece) continue;
+
+            const idx = PLAYER_INDEX[piece.player];
+            let value = piece.isSultan ? EVAL_WEIGHTS.SULTAN_VALUE : EVAL_WEIGHTS.PAWN_VALUE;
+
+            if (!piece.isSultan) {
+                const adv = getAdvancement(piece);
+                value += adv * EVAL_WEIGHTS.ADVANCEMENT_WEIGHT;
+                if (adv >= 9) value += EVAL_WEIGHTS.PROMOTION_NEAR_BONUS;
+            }
+
+            if (r >= 4 && r <= 7 && c >= 4 && c <= 7) value += EVAL_WEIGHTS.CENTER_CONTROL_WEIGHT;
+            if (r === 0 || r === 11 || c === 0 || c === 11) value += EVAL_WEIGHTS.EDGE_SAFETY_WEIGHT;
+            if (isPieceProtected(board, piece)) value += EVAL_WEIGHTS.PROTECTED_BONUS;
+
+            ownPositional[idx] += value;
+        }
+    }
+
+    const mobilityBonus = [0, 0, 0, 0];
+    const legalByPlayer = {};
+
+    for (const p of activePlayers) {
+        const idx = PLAYER_INDEX[p];
+        const legal = getAllPossibleMovesForPlayer(board, p);
+        legalByPlayer[p] = legal;
+        mobilityBonus[idx] += legal.length * EVAL_WEIGHTS.MOBILITY_WEIGHT;
+
+        if (legal.length > 0 && legal[0].captures && legal[0].captures.length > 0) {
+            const maxCapt = legal[0].captures.length;
+            mobilityBonus[idx] += maxCapt * EVAL_WEIGHTS.CAPTURE_BASE_BONUS;
+            if (maxCapt > 1) mobilityBonus[idx] += EVAL_WEIGHTS.CHAIN_CAPTURE_BONUS;
+        }
+    }
+
+    if (isTeamMode()) {
+        const teamA = ['blue', 'black'];
+        const teamB = ['red', 'white'];
+
+        const evaluateTeam = (members, enemies) => {
+            let power = 0;
+
+            for (const p of members) {
+                const i = PLAYER_INDEX[p];
+                const count = playerCounts[p] || 0;
+                power += ownPositional[i] + mobilityBonus[i] + count * 15;
+
+                if (count > 0) power += TEAM_AI_WEIGHTS.MEMBER_ALIVE_BONUS;
+
+                if (activeSet.has(p) && count > 0 && (legalByPlayer[p] || []).length === 0) {
+                    power -= TEAM_AI_WEIGHTS.MEMBER_NO_MOVES_PENALTY;
+                }
+            }
+
+            const aliveMembers = members.filter(p => (playerCounts[p] || 0) > 0).length;
+            if (aliveMembers === 2) power += TEAM_AI_WEIGHTS.BOTH_MEMBERS_ALIVE_BONUS;
+
+            // Состояние слабейшего союзника имеет отдельный вес. ИИ теперь не может
+            // считать позицию хорошей только потому, что у его собственного цвета
+            // много шашек, если напарник почти уничтожен.
+            const weakestCount = Math.min(...members.map(p => playerCounts[p] || 0));
+            power += weakestCount * TEAM_AI_WEIGHTS.WEAKEST_MEMBER_PIECE;
+
+            const incoming = getCapturePressureFromLegalMoves(board, legalByPlayer, enemies, members);
+            const outgoing = getCapturePressureFromLegalMoves(board, legalByPlayer, members, enemies);
+
+            power -= incoming.value * TEAM_AI_WEIGHTS.DEFENSE_PRESSURE_FACTOR;
+            power += outgoing.value * TEAM_AI_WEIGHTS.ATTACK_PRESSURE_FACTOR;
+            power += countCrossColorSupport(board, members) * TEAM_AI_WEIGHTS.CROSS_COLOR_SUPPORT;
+
+            return power;
+        };
+
+        const aPower = evaluateTeam(teamA, teamB);
+        const bPower = evaluateTeam(teamB, teamA);
+        const aScore = aPower - bPower;
+        const bScore = bPower - aPower;
+
+        // Көк и Қара максимизируют один и тот же командный результат.
+        // Қызыл и Ақ — тоже один и тот же результат своей пары.
+        scores[PLAYER_INDEX.blue] = aScore;
+        scores[PLAYER_INDEX.black] = aScore;
+        scores[PLAYER_INDEX.red] = bScore;
+        scores[PLAYER_INDEX.white] = bScore;
+        return scores;
+    }
+
+    for (const p of TURN_ORDER) {
+        const idx = PLAYER_INDEX[p];
+
+        if (!activeSet.has(p) || (playerCounts[p] || 0) <= 0) {
+            scores[idx] = -500000;
+            continue;
+        }
+
+        let enemyTotal = 0;
+        for (const enemy of activePlayers) {
+            if (enemy !== p) enemyTotal += ownPositional[PLAYER_INDEX[enemy]];
+        }
+
+        scores[idx] = ownPositional[idx] + mobilityBonus[idx] - enemyTotal * 0.34 + (playerCounts[p] || 0) * 15;
+    }
+
+    return scores;
+}
+
+function isPromotionMove(move) {
+    if (!move || !move.piece || move.piece.isSultan) return false;
+    const pl = move.piece.player;
+    if (pl === 'blue' || pl === 'red') return move.to[0] === PROMOTION_LINES[pl];
+    return move.to[1] === PROMOTION_LINES[pl];
+}
+
+function moveOrderingScore(board, move, playerCounts = null) {
+    let score = 0;
+
+    if (move.captures && move.captures.length) {
+        score += move.captures.length * 10000;
+        for (const [r, c] of move.captures) {
+            const victim = board[r][c];
+            if (victim) score += victim.isSultan ? 1400 : 450;
+        }
+        if (move.captures.length > 1) score += 1200;
+    }
+
+    if (isPromotionMove(move)) score += 5000;
+
+    const [tr, tc] = move.to;
+    if (tr >= 4 && tr <= 7 && tc >= 4 && tc <= 7) score += 180;
+    if (tr === 0 || tr === 11 || tc === 0 || tc === 11) score += 80;
+
+    if (move.piece && !move.piece.isSultan) {
+        const pseudoPiece = { player: move.piece.player, row: tr, col: tc };
+        score += getAdvancement(pseudoPiece) * 25;
+    }
+
+    if (isTeamMode() && move.piece) {
+        const player = move.piece.player;
+        const partner = getPartner(player);
+        const enemies = TURN_ORDER.filter(p => areEnemies(player, p));
+
+        if (partner) {
+            const threatInfo = getImmediateThreatInfo(board, enemies, [partner]);
+
+            for (const [cr, cc] of move.captures || []) {
+                if (threatInfo.threateningAttackers.has(`${cr},${cc}`)) {
+                    score += TEAM_AI_WEIGHTS.SAVE_PARTNER_ATTACKER_BONUS;
+                }
+            }
+
+            const supportedBefore = moveTouchesPartner(board, move.from[0], move.from[1], partner);
+            const supportedAfter = moveTouchesPartner(board, tr, tc, partner);
+
+            if (supportedAfter) {
+                score += TEAM_AI_WEIGHTS.SUPPORT_PARTNER_BONUS;
+            } else if (supportedBefore) {
+                score -= TEAM_AI_WEIGHTS.ABANDON_PARTNER_SUPPORT_PENALTY;
+            }
+
+            if (moveSupportsThreatenedPartner(board, tr, tc, partner, threatInfo.threatenedVictims)) {
+                score += TEAM_AI_WEIGHTS.SUPPORT_THREATENED_PARTNER_BONUS;
+            }
+
+            if (playerCounts && (playerCounts[partner] || 0) <= 3 && supportedAfter) {
+                score += TEAM_AI_WEIGHTS.SUPPORT_PARTNER_BONUS;
+            }
+        }
+    }
+
+    return score;
+}
+
+function getBeamWidth(config, plyFromRoot, orderedMoves) {
+    let width = orderedMoves.length;
+    for (const step of config.beamSchedule) {
+        if (plyFromRoot <= step.maxPly) {
+            width = step.width;
+            break;
+        }
+    }
+
+    // При обязательном взятии оставляем немного больше тактических вариантов.
+    const isCaptureNode = orderedMoves.length > 0 &&
+        orderedMoves[0].captures &&
+        orderedMoves[0].captures.length > 0;
+
+    if (isCaptureNode) width += 2;
+
+    return Math.max(1, Math.min(width, orderedMoves.length));
+}
+
+function orderMovesForSearch(board, moves, playerCounts = null) {
+    return [...moves].sort(
+        (a, b) => moveOrderingScore(board, b, playerCounts) - moveOrderingScore(board, a, playerCounts)
+    );
+}
+
+function checkAiDeadline(ctx) {
+    ctx.nodes++;
+    if ((ctx.nodes & 63) === 0 && aiNow() >= ctx.deadline) {
+        throw AI_TIMEOUT;
+    }
+}
+
+function maxN(board, playerCounts, turnIndex, activePlayers, depth, ctx) {
+    checkAiDeadline(ctx);
+
+    if (isTerminalActivePlayers(activePlayers) || depth <= 0) {
+        return evaluateAllPlayersFast(board, playerCounts, activePlayers);
+    }
+
+    let currentPlayer = TURN_ORDER[turnIndex];
+
+    if (!activePlayers.includes(currentPlayer)) {
+        const next = getNextActivePlayer(turnIndex, activePlayers);
+        if (!next) return evaluateAllPlayersFast(board, playerCounts, activePlayers);
+        return maxN(board, playerCounts, next.index, activePlayers, depth, ctx);
+    }
+
+    const stateKey =
+        getBoardHash(board, turnIndex) +
+        `_a${activePlayers.join('.')}` +
+        `_d${depth}`;
+
+    if (ctx.tt.has(stateKey)) {
+        return ctx.tt.get(stateKey);
+    }
+
+    let moves = getAllPossibleMovesForPlayer(board, currentPlayer);
+
+    // Игрок без допустимых ходов выбывает, как и в основной логике игры.
+    if (moves.length === 0) {
+        const newActive = activePlayers.filter(p => p !== currentPlayer);
+
+        if (isTerminalActivePlayers(newActive)) {
+            const terminal = evaluateAllPlayersFast(board, playerCounts, newActive);
+            ctx.tt.set(stateKey, terminal);
+            return terminal;
+        }
+
+        const next = getNextActivePlayer(turnIndex, newActive);
+        const skipped = !next
+            ? evaluateAllPlayersFast(board, playerCounts, newActive)
+            : maxN(board, playerCounts, next.index, newActive, depth, ctx);
+
+        ctx.tt.set(stateKey, skipped);
+        return skipped;
+    }
+
+    const ordered = orderMovesForSearch(board, moves, playerCounts);
+    const plyFromRoot = ctx.iterationDepth - depth;
+    const beamWidth = getBeamWidth(ctx.config, plyFromRoot, ordered);
+    const candidates = ordered.slice(0, beamWidth);
+
+    const playerIdx = PLAYER_INDEX[currentPlayer];
+    let bestVector = null;
+    let bestOwnScore = -Infinity;
+    let bestTieScore = -Infinity;
+
+    for (const move of candidates) {
+        const result = applyMoveToBoard(board, move, playerCounts);
+
+        // После взятия игрок с 0 шашек должен сразу считаться выбывшим.
+        const childActive = activePlayers.filter(p => (result.counts[p] || 0) > 0);
+
+        let childVector;
+        if (isTerminalActivePlayers(childActive)) {
+            childVector = evaluateAllPlayersFast(result.board, result.counts, childActive);
+        } else {
+            const next = getNextActivePlayer(turnIndex, childActive);
+            childVector = !next
+                ? evaluateAllPlayersFast(result.board, result.counts, childActive)
+                : maxN(result.board, result.counts, next.index, childActive, depth - 1, ctx);
+        }
+
+        const ownScore = childVector[playerIdx];
+
+        // При равной собственной оценке предпочитаем позицию,
+        // где сильнейший соперник имеет меньшую оценку.
+        let strongestEnemy = -Infinity;
+        for (const enemy of childActive) {
+            if (areEnemies(currentPlayer, enemy)) {
+                strongestEnemy = Math.max(strongestEnemy, childVector[PLAYER_INDEX[enemy]]);
+            }
+        }
+        const tieScore = strongestEnemy === -Infinity ? 0 : -strongestEnemy;
+
+        if (
+            bestVector === null ||
+            ownScore > bestOwnScore ||
+            (ownScore === bestOwnScore && tieScore > bestTieScore)
+        ) {
+            bestVector = childVector;
+            bestOwnScore = ownScore;
+            bestTieScore = tieScore;
+        }
+    }
+
+    if (bestVector === null) {
+        bestVector = evaluateAllPlayersFast(board, playerCounts, activePlayers);
+    }
+
+    ctx.tt.set(stateKey, bestVector);
+    return bestVector;
+}
+
+function searchRootAtDepth(gameInstance, depth, config, deadline) {
+    const board = gameInstance.board;
+    const player = gameInstance.currentPlayer;
+    const playerCounts = gameInstance.playerPiecesCount;
+    const turnIndex = gameInstance.turnIndex;
+    const activePlayers = gameInstance.activePlayers;
+
+    const rootMoves = orderMovesForSearch(
+        board,
+        getAllPossibleMovesForPlayer(board, player),
+        playerCounts
+    );
+
+    if (rootMoves.length === 0) {
+        return { move: null, candidates: [], nodes: 0 };
+    }
+
+    const ctx = {
+        config,
+        deadline,
+        tt: new Map(),
+        nodes: 0,
+        iterationDepth: depth
+    };
+
+    const playerIdx = PLAYER_INDEX[player];
+    let bestMove = rootMoves[0];
+    let bestScore = -Infinity;
+    const candidates = [];
+
+    // На первом уровне НЕ обрезаем варианты — ИИ сравнивает каждый
+    // реально допустимый ход.
+    for (const move of rootMoves) {
+        checkAiDeadline(ctx);
+
+        const result = applyMoveToBoard(board, move, playerCounts);
+        const childActive = activePlayers.filter(p => (result.counts[p] || 0) > 0);
+
+        let vector;
+        if (isTerminalActivePlayers(childActive) || depth <= 1) {
+            vector = evaluateAllPlayersFast(result.board, result.counts, childActive);
+        } else {
+            const next = getNextActivePlayer(turnIndex, childActive);
+            vector = !next
+                ? evaluateAllPlayersFast(result.board, result.counts, childActive)
+                : maxN(result.board, result.counts, next.index, childActive, depth - 1, ctx);
+        }
+
+        const score = vector[playerIdx];
+        candidates.push({ move, score });
+
+        if (score > bestScore) {
+            bestScore = score;
+            bestMove = move;
+        }
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    return { move: bestMove, candidates, nodes: ctx.nodes };
+}
+
+// В командном режиме оценка обоих игроков одной команды одинакова.
+// Поэтому AI+AI, AI+человек и сценарий 3 AI + 1 человек работают автоматически:
+// AI цвета напарника помогает человеку, а два AI противоположных цветов играют вместе.
+// ==================== ВЫБОР ХОДА ПО СЛОЖНОСТИ ====================
+function chooseBestMove(gameInstance, level) {
+    const legalMoves = getAllPossibleMovesForPlayer(
+        gameInstance.board,
+        gameInstance.currentPlayer
+    );
+
+    if (legalMoves.length === 0) return null;
+    if (legalMoves.length === 1) return legalMoves[0];
+
+    const config = AI_SEARCH_CONFIG[level] || AI_SEARCH_CONFIG.easy;
+    const startTime = aiNow();
+    const deadline = startTime + config.timeLimitMs;
+
+    let bestMove = orderMovesForSearch(gameInstance.board, legalMoves, gameInstance.playerPiecesCount)[0];
+    let lastCompletedCandidates = [{ move: bestMove, score: -Infinity }];
+    let completedDepth = 0;
+    let totalNodes = 0;
+
+    // Iterative deepening: если лимит времени закончится,
+    // остаётся полностью рассчитанный результат предыдущей глубины.
+    for (let depth = 1; depth <= config.maxDepth; depth++) {
+        try {
+            const result = searchRootAtDepth(gameInstance, depth, config, deadline);
+            if (result.move) {
+                bestMove = result.move;
+                lastCompletedCandidates = result.candidates;
+                completedDepth = depth;
+                totalNodes += result.nodes;
+            }
+
+            if (aiNow() >= deadline) break;
+        } catch (e) {
+            if (e !== AI_TIMEOUT) throw e;
+            break;
+        }
+    }
+
+    // Лёгкий ИИ иногда выбирает почти равный ход, средний — редко.
+    // Сложный всегда берёт лучший полностью рассчитанный вариант.
+    if (config.randomMargin > 0 && lastCompletedCandidates.length > 1) {
+        const bestScore = lastCompletedCandidates[0].score;
+        const nearBest = lastCompletedCandidates.filter(
+            c => c.score >= bestScore - config.randomMargin
+        );
+
+        if (nearBest.length > 1) {
+            bestMove = nearBest[Math.floor(Math.random() * nearBest.length)].move;
+        }
+    }
+
+    // Полезно для проверки фактической глубины в консоли браузера.
+    console.log(
+        `[AI ${level}] depth=${completedDepth}/${config.maxDepth}, ` +
+        `nodes≈${totalNodes}, time=${Math.round(aiNow() - startTime)}ms`
+    );
+
+    return bestMove;
+}
+
+// ==================== КЛАСС ИГРЫ (KAZDOIBA GAME) ====================
+class KazdoibaGame {
+    constructor(loadData = null){
+        if (loadData) {
+            this._loadStateData(loadData);
+        } else {
+            this.board = this._setupBoard();
+            this.turnIndex = 0;
+            this.currentPlayer = TURN_ORDER[this.turnIndex];
+            this.activePlayers = [...TURN_ORDER];
+            this.playerPiecesCount = TURN_ORDER.reduce((a,p)=>{a[p]=STARTING_POSITIONS[p].length;return a;},{});
+            this.gameMode = document.getElementById('gameMode').value || 'ffa';
+            CURRENT_GAME_MODE = this.gameMode;
+            this.playerTypes = {
+                blue: document.getElementById('blueType').value,
+                black: document.getElementById('blackType').value,
+                red: document.getElementById('redType').value,
+                white: document.getElementById('whiteType').value
+            };
+            this.historyLog = [];
+            this.historyStack = [];
+        }
+
+        this.selectedPiece = null;
+        this.validMoves = {};
+        this.mandatoryCaptures = {};
+        this.inMultiJump = false;
+        this.capturedInTurn = new Set();
+        this.winner = null;
+        this.lastMove = this.lastMove || null;
+        this.isAnimatingCapture = false;
+        this.captureAnimationVisible = new Set();
+        this.aiGeneration = 0;
+        
+        this._findAllMandatoryCaptures();
+        this.updateBoard();
+        this.updateHud();
+        this.renderHistory();
+        
+        if(!loadData && this.playerTypes[this.currentPlayer] !== 'human'){
+            setTimeout(()=>this.makeAiMove(), 500);
+        }
+    }
+    
+    _serializeState() {
+        const simpleBoard = this.board.map(row => row.map(p => p ? {player: p.player, isSultan: p.isSultan, r: p.row, c: p.col} : null));
+        return JSON.stringify({
+            board: simpleBoard,
+            turnIndex: this.turnIndex,
+            currentPlayer: this.currentPlayer,
+            activePlayers: this.activePlayers,
+            playerPiecesCount: this.playerPiecesCount,
+            gameMode: this.gameMode,
+            playerTypes: this.playerTypes,
+            historyLog: this.historyLog,
+            lastMove: this.lastMove
+        });
+    }
+
+    _loadStateData(data, preserveUndoHistory = false) {
+        const preservedHistoryStack = preserveUndoHistory && Array.isArray(this.historyStack)
+            ? this.historyStack
+            : [];
+
+        const parsed = JSON.parse(data);
+        this.board = Array.from({length:BOARD_ROWS},()=>Array(BOARD_COLS).fill(null));
+        for(let r=0; r<BOARD_ROWS; r++){
+            for(let c=0; c<BOARD_COLS; c++){
+                if(parsed.board[r][c]) {
+                    const pData = parsed.board[r][c];
+                    const p = new Piece(pData.r, pData.c, pData.player);
+                    p.isSultan = pData.isSultan;
+                    this.board[r][c] = p;
+                }
+            }
+        }
+        this.turnIndex = parsed.turnIndex;
+        this.currentPlayer = parsed.currentPlayer;
+        this.activePlayers = parsed.activePlayers;
+        this.playerPiecesCount = parsed.playerPiecesCount;
+        this.gameMode = parsed.gameMode || 'ffa';
+        CURRENT_GAME_MODE = this.gameMode;
+        this.playerTypes = parsed.playerTypes;
+        this.historyLog = parsed.historyLog || [];
+        this.lastMove = parsed.lastMove || null;
+
+        // История отмены сохраняется при Undo, но очищается при обычной загрузке save.
+        this.historyStack = preserveUndoHistory ? preservedHistoryStack : [];
+
+        // Полностью очищаем временное состояние хода, чтобы после Undo
+        // можно было сразу выбрать шашку и сделать новый ход.
+        this.selectedPiece = null;
+        this.validMoves = {};
+        this.mandatoryCaptures = {};
+        this.inMultiJump = false;
+        this.capturedInTurn = new Set();
+        this.captureAnimationVisible = new Set();
+        this.winner = null;
+        this.isAnimatingCapture = false;
+    }
+
+    saveToLocalStorage() {
+        if(!this.winner) localStorage.setItem('kazdoiba_save', this._serializeState());
+        else localStorage.removeItem('kazdoiba_save');
+    }
+
+    _setupBoard(){
+        const b = Array.from({length:BOARD_ROWS},()=>Array(BOARD_COLS).fill(null));
+        for(const p in STARTING_POSITIONS){
+            for(const [r,c] of STARTING_POSITIONS[p]){ b[r][c]=new Piece(r,c,p); }
+        }
+        return b;
+    }
+    _is_valid_pos(r,c){ return r>=0 && r<BOARD_ROWS && c>=0 && c<BOARD_COLS && !OOB_SQUARES.some(([rr,cc])=>rr===r && cc===c); }
+    getPiece(r,c){ return this._is_valid_pos(r,c)? this.board[r][c]:null; }
+
+    updateBoard(showCaptured = false){
+        const cells = document.querySelectorAll('.cell');
+        cells.forEach(cell => {
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+            
+            cell.classList.remove('selected','possible','capture','last-move-from','last-move-to', 'hint-highlight');
+            
+            if (this.lastMove && this.lastMove.from[0] === r && this.lastMove.from[1] === c) cell.classList.add('last-move-from');
+            if (this.lastMove && this.lastMove.to[0] === r && this.lastMove.to[1] === c) cell.classList.add('last-move-to');
+
+            const pieceState = this.getPiece(r,c);
+            let pieceDom = cell.querySelector('.piece');
+
+            if (pieceState) {
+                if (!pieceDom) {
+                    pieceDom = document.createElement('div');
+                    pieceDom.className = `piece ${pieceState.player}`;
+                    cell.appendChild(pieceDom);
+                } else {
+                    pieceDom.className = `piece ${pieceState.player}`;
+                }
+                if(pieceState.isSultan){
+                    pieceDom.classList.add('sultan');
+                    pieceDom.textContent='👑';
+                } else { pieceDom.textContent=''; }
+
+                const captureKey = `${r},${c}`;
+                const keepVisibleForAnimation =
+                    this.captureAnimationVisible &&
+                    this.captureAnimationVisible.has(captureKey);
+
+                if (
+                    this.capturedInTurn.has(captureKey) &&
+                    !keepVisibleForAnimation &&
+                    !showCaptured
+                ) {
+                    pieceDom.classList.add('captured-hidden');
+                }
+            } else if (pieceDom) {
+                pieceDom.remove();
+            }
+        });
+        
+        if(this.selectedPiece){
+            const cell = document.querySelector(`[data-row="${this.selectedPiece.row}"][data-col="${this.selectedPiece.col}"]`);
+            if(cell) cell.classList.add('selected');
+        }
+        for(const key in this.validMoves){
+            const [r,c] = key.split(',').map(Number);
+            const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+            if(!cell) continue;
+            if(this.validMoves[key].length > 0) cell.classList.add('capture');
+            else cell.classList.add('possible');
+        }
+    }
+
+    updateHud(){
+        const status = document.getElementById('status');
+
+        if(this.winner){
+            status.textContent = isTeamMode()
+                ? `🏆 Жеңімпаз команда: ${this.winner}`
+                : `🏆 Жеңімпаз: ${PLAYER_LABELS[this.winner] || this.winner}`;
+        } else {
+            status.textContent = `Кезек: ${PLAYER_LABELS[this.currentPlayer] || this.currentPlayer}`;
+
+            if(isTeamMode()){
+                status.textContent += ` | 🤝 ${TEAM_LABELS[getTeamId(this.currentPlayer)]}`;
+            }
+
+            if(Object.keys(this.mandatoryCaptures).length > 0 && !this.inMultiJump){
+                status.textContent += ' | ⚠️ Жою міндетті';
+            }
+        }
+
+        document.querySelectorAll('.player-box').forEach(b => {
+            b.classList.remove('active');
+            if(b.dataset.player === this.currentPlayer) b.classList.add('active');
+
+            const player = b.dataset.player;
+            const cnt = b.querySelector('.count');
+            if(cnt) cnt.textContent = `Тастар: ${this.playerPiecesCount[player]}`;
+
+            let teamLine = b.querySelector('.team-line');
+            if(!teamLine){
+                teamLine = document.createElement('div');
+                teamLine.className = 'team-line';
+                teamLine.style.fontSize = '0.82em';
+                teamLine.style.opacity = '0.9';
+                b.appendChild(teamLine);
+            }
+
+            if (isTeamMode()) {
+                teamLine.style.display = '';
+                teamLine.textContent = `🤝 ${TEAM_LABELS[getTeamId(player)]}`;
+            } else {
+                teamLine.style.display = 'none';
+                teamLine.textContent = '';
+            }
+        });
+
+        const undoBtn = document.getElementById('btnUndo');
+        undoBtn.disabled =
+            (this.historyStack.length === 0 || this.inMultiJump || this.isAnimatingCapture);
+        undoBtn.textContent = this.historyStack.length > 0
+            ? `↩ Болдырмау (${this.historyStack.length})`
+            : '↩ Болдырмау';
+    }
+
+    renderHistory() {
+        const list = document.getElementById('historyList');
+        list.innerHTML = '';
+        [...this.historyLog].reverse().forEach(log => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="pl-color bg-${log.player}">${PLAYER_LABELS[log.player] || log.player}</span> ${log.text}`;
+            list.appendChild(li);
+        });
+    }
+
+    handleClick(r,c){
+        if(this.winner || this.isAnimatingCapture || this.playerTypes[this.currentPlayer] !== 'human') return;
+        if(!this._is_valid_pos(r,c)) return;
+        
+        const moveKey = `${r},${c}`;
+        if(moveKey in this.validMoves){
+            if(!this.inMultiJump) this.historyStack.push(this._serializeState());
+            const jumped = this.validMoves[moveKey];
+            this._movePiece(this.selectedPiece, r, c, jumped);
+            return;
+        }
+        const p = this.getPiece(r,c);
+        if(p && p.player === this.currentPlayer){
+            if(this.inMultiJump) return;
+            const key = `${r},${c}`;
+            if(Object.keys(this.mandatoryCaptures).length > 0 && !(key in this.mandatoryCaptures)) return;
+            this._selectPiece(p);
+            this.updateBoard();
+            return;
+        }
+        if(!this.inMultiJump){ this._unselectPiece(); this.updateBoard(); }
+    }
+
+    _selectPiece(p){
+        this.selectedPiece = p;
+        if(this.inMultiJump){
+            this.validMoves = this._findCapturesForPiece(p, this.capturedInTurn);
+        } else {
+            const key = `${p.row},${p.col}`;
+            if(Object.keys(this.mandatoryCaptures).length > 0){ this.validMoves = this.mandatoryCaptures[key] || {}; } 
+            else { this.validMoves = this._findSimpleMovesForPiece(p); }
+        }
+    }
+    _unselectPiece(){ this.selectedPiece = null; this.validMoves = {}; }
+
+    _findAllMandatoryCaptures(){
+        let all = {}, maxCapt = 0;
+        for(let r=0; r<BOARD_ROWS; r++){
+            for(let c=0; c<BOARD_COLS; c++){
+                const p = this.getPiece(r,c);
+                if(p && p.player === this.currentPlayer){
+                    const caps = this._findCapturesForPiece(p, new Set());
+                    if(Object.keys(caps).length){
+                        const pieceMax = Math.max(...Object.values(caps).map(j=>j.length));
+                        maxCapt = Math.max(maxCapt, pieceMax);
+                        all[`${r},${c}`] = caps;
+                    }
+                }
+            }
+        }
+        this.mandatoryCaptures = {};
+        for(const pos in all){
+            const filtered = {};
+            for(const land in all[pos]){
+                if(all[pos][land].length === maxCapt) filtered[land] = all[pos][land];
+            }
+            if(Object.keys(filtered).length) this.mandatoryCaptures[pos] = filtered;
+        }
+    }
+
+    _findCapturesForPiece(piece, capturedInSeq){ return findCapturesForPieceBoard(this.board, piece, capturedInSeq); }
+    _findSimpleMovesForPiece(p){ return findSimpleMovesForPieceBoard(this.board, p); }
+
+    _formatCoord(r, c) { return `${colLabels[c]}${rowLabels[r]}`; }
+
+    _wait(ms){
+        return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    async _animateMovingPiece(p, from, to, duration = 290){
+        const fromCell = document.querySelector(
+            `[data-row="${from[0]}"][data-col="${from[1]}"]`
+        );
+        const fromRect = fromCell ? fromCell.getBoundingClientRect() : null;
+
+        this.board[from[0]][from[1]] = null;
+        p.row = to[0];
+        p.col = to[1];
+        this.board[to[0]][to[1]] = p;
+
+        this.lastMove = { from: [...from], to: [...to] };
+        this.updateBoard();
+        this.updateHud();
+
+        const toCell = document.querySelector(
+            `[data-row="${to[0]}"][data-col="${to[1]}"]`
+        );
+        const pieceDom = toCell ? toCell.querySelector('.piece') : null;
+
+        if (!fromRect || !toCell || !pieceDom || typeof pieceDom.animate !== 'function') {
+            await this._wait(Math.min(duration, 120));
+            return;
+        }
+
+        const toRect = toCell.getBoundingClientRect();
+        const dx = (fromRect.left + fromRect.width / 2) - (toRect.left + toRect.width / 2);
+        const dy = (fromRect.top + fromRect.height / 2) - (toRect.top + toRect.height / 2);
+
+        try {
+            const animation = pieceDom.animate(
+                [
+                    { transform: `translate(${dx}px, ${dy}px) scale(1.02)`, offset: 0 },
+                    { transform: 'translate(0, 0) scale(1.12)', offset: 0.78 },
+                    { transform: 'translate(0, 0) scale(1)', offset: 1 }
+                ],
+                {
+                    duration,
+                    easing: 'cubic-bezier(0.22, 0.75, 0.25, 1)',
+                    fill: 'both'
+                }
+            );
+            await animation.finished.catch(() => {});
+        } catch (_) {
+            await this._wait(duration);
+        }
+    }
+
+    async _animateCapturedPieces(jumped){
+        if(!jumped || jumped.length === 0) return;
+
+        const animated = [];
+
+        for(const [r,c] of jumped){
+            const cell = document.querySelector(`[data-row="${r}"][data-col="${c}"]`);
+            const pieceDom = cell ? cell.querySelector('.piece') : null;
+            if(!cell || !pieceDom) continue;
+
+            pieceDom.classList.remove('captured-hidden', 'captured-vanish');
+            pieceDom.classList.add('capture-target');
+            cell.classList.add('capture-impact');
+            animated.push({ cell, pieceDom });
+        }
+
+        // Сначала видно, какая именно шашка была перепрыгнута.
+        await this._wait(230);
+
+        for(const {pieceDom} of animated){
+            pieceDom.classList.remove('capture-target');
+            pieceDom.classList.add('captured-vanish');
+        }
+
+        await this._wait(390);
+
+        for(const {cell, pieceDom} of animated){
+            cell.classList.remove('capture-impact');
+            pieceDom.classList.remove('capture-target', 'captured-vanish');
+            pieceDom.classList.add('captured-hidden');
+        }
+    }
+
+    async _movePiece(p, nr, nc, jumped){
+        if(this.isAnimatingCapture) return;
+        this.isAnimatingCapture = true;
+
+        try {
+            const start = [p.row, p.col];
+            const fromCoord = this._formatCoord(start[0], start[1]);
+            const finalCoord = this._formatCoord(nr, nc);
+            const isCap = jumped && jumped.length > 0;
+
+            // Для серии взятий используем настоящий маршрут из DFS.
+            // Fallback нужен для старых сохранений/простых вариантов.
+            let route = isCap && jumped.path && jumped.path.length
+                ? jumped.path.map(([r,c]) => [r,c])
+                : [[nr, nc]];
+
+            // Гарантируем, что последняя точка совпадает с выбранной конечной клеткой.
+            const routeLast = route[route.length - 1];
+            if (!routeLast || routeLast[0] !== nr || routeLast[1] !== nc) {
+                route.push([nr, nc]);
+            }
+
+            if (!isCap) {
+                await this._animateMovingPiece(p, start, [nr, nc], 300);
+            } else {
+                let current = [...start];
+
+                // Каждый прыжок показывается отдельно:
+                // 1. шашка летит на промежуточную клетку;
+                // 2. конкретная съеденная шашка подсвечивается и исчезает;
+                // 3. выполняется следующий прыжок.
+                for (let i = 0; i < route.length; i++) {
+                    const landing = route[i];
+
+                    // В корректной цепочке число промежуточных точек равно числу взятий.
+                    // Если старый объект маршрута неполный — последний capture всё равно
+                    // будет показан на финальном шаге.
+                    const capture = jumped[Math.min(i, jumped.length - 1)];
+                    const captureKey = capture ? `${capture[0]},${capture[1]}` : null;
+
+                    if (captureKey) {
+                        this.capturedInTurn.add(captureKey);
+                        this.captureAnimationVisible.add(captureKey);
+                    }
+
+                    await this._animateMovingPiece(p, current, landing, 300);
+                    current = [...landing];
+
+                    if (capture) {
+                        await this._animateCapturedPieces([capture]);
+                        this.captureAnimationVisible.delete(captureKey);
+                        this.updateBoard();
+                        this.updateHud();
+                    }
+
+                    // Небольшая пауза между прыжками делает цепочку читаемой.
+                    if (i < route.length - 1) {
+                        await this._wait(110);
+                    }
+                }
+
+                // На случай старого/неполного path показываем оставшиеся жертвы.
+                if (jumped.length > route.length) {
+                    for (let i = route.length; i < jumped.length; i++) {
+                        const capture = jumped[i];
+                        const captureKey = `${capture[0]},${capture[1]}`;
+                        this.capturedInTurn.add(captureKey);
+                        this.captureAnimationVisible.add(captureKey);
+                        this.updateBoard();
+                        await this._animateCapturedPieces([capture]);
+                        this.captureAnimationVisible.delete(captureKey);
+                        this.updateBoard();
+                    }
+                }
+            }
+
+            if(!p.isSultan){
+                const pl = p.player;
+                if(((pl==='blue'||pl==='red') && p.row===PROMOTION_LINES[pl]) ||
+                   ((pl==='black'||pl==='white') && p.col===PROMOTION_LINES[pl])){
+                    p.promote();
+                    this.updateBoard();
+                }
+            }
+
+            let actionText;
+            if (isCap && route.length > 0) {
+                const routeText = route
+                    .map(([rr, cc]) => this._formatCoord(rr, cc))
+                    .join(' ➔ ');
+                actionText = `${fromCoord} ➔ ${routeText} (Жою: ${jumped.length})`;
+            } else {
+                actionText = `${fromCoord} ➔ ${finalCoord}`;
+            }
+
+            if (!this.inMultiJump) {
+                this.historyLog.push({ player: p.player, text: actionText });
+            } else {
+                this.historyLog[this.historyLog.length-1].text += ` ➔ ${finalCoord}`;
+            }
+            this.renderHistory();
+
+            if(isCap){
+                // В большинстве случаев route уже содержит всю максимальную цепочку.
+                // Но оставляем поддержку продолжения для совместимости с правилами игры.
+                this._selectPiece(p);
+                if(Object.keys(this.validMoves).length > 0){
+                    this.inMultiJump = true;
+                    this.updateBoard();
+                    this.updateHud();
+                    return;
+                }
+            }
+
+            this._endTurn();
+            this.updateBoard();
+            this.updateHud();
+        } finally {
+            this.captureAnimationVisible.clear();
+            this.isAnimatingCapture = false;
+            this.updateHud();
+        }
+    }
+
+    _endTurn(){
+        this.capturedInTurn.forEach(s => {
+            const [r,c] = s.split(',').map(Number);
+            const p = this.board[r][c];
+            if(p) this.playerPiecesCount[p.player]--;
+            this.board[r][c] = null;
+        });
+        this._unselectPiece();
+        this.inMultiJump = false;
+        this.capturedInTurn = new Set();
+        this.activePlayers = this.activePlayers.filter(p => this.playerPiecesCount[p] > 0);
+        
+        if(isTerminalActivePlayers(this.activePlayers)){
+            this.winner = getWinnerLabel(this.activePlayers);
+            this.updateHud(); this.saveToLocalStorage(); return;
+        }
+        
+        let next = (this.turnIndex+1) % TURN_ORDER.length;
+        while(true){
+            this.turnIndex = next;
+            this.currentPlayer = TURN_ORDER[this.turnIndex];
+            if(!this.activePlayers.includes(this.currentPlayer)){ next=(next+1)%TURN_ORDER.length; continue; }
+            this._findAllMandatoryCaptures();
+            if(Object.keys(this.mandatoryCaptures).length > 0 || this._checkAnySimple()){ break; } 
+            else {
+                this.activePlayers = this.activePlayers.filter(p => p !== this.currentPlayer);
+                if(isTerminalActivePlayers(this.activePlayers)){
+                    this.winner = getWinnerLabel(this.activePlayers);
+                    this.updateHud(); this.saveToLocalStorage(); return;
+                }
+            }
+            next = (next+1) % TURN_ORDER.length;
+        }
+        
+        this.saveToLocalStorage();
+        this.updateHud();
+        if(this.playerTypes[this.currentPlayer] !== 'human'){
+            setTimeout(() => this.makeAiMove(), 400);
+        }
+    }
+
+    _checkAnySimple(){
+        for(let r=0; r<BOARD_ROWS; r++){
+            for(let c=0; c<BOARD_COLS; c++){
+                const p = this.getPiece(r,c);
+                if(p && p.player === this.currentPlayer){
+                    if(Object.keys(this._findSimpleMovesForPiece(p)).length > 0) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    makeAiMove(){
+        if(
+            this.winner ||
+            this.isAnimatingCapture ||
+            this.playerTypes[this.currentPlayer] === 'human'
+        ) return;
+
+        const generation = ++this.aiGeneration;
+        const level = this.playerTypes[this.currentPlayer].split('-')[1] || 'easy';
+        const status = document.getElementById('status');
+        const originalText = status.textContent;
+        status.textContent = `🤖 ${PLAYER_LABELS[this.currentPlayer] || this.currentPlayer} ойыншысы ойлап жатыр...`;
+        status.classList.add('ai-thinking');
+
+        setTimeout(async () => {
+            if (generation !== this.aiGeneration) return;
+
+            try {
+                if(!this.inMultiJump) this.historyStack.push(this._serializeState());
+
+                if(this.inMultiJump){
+                    if(Object.keys(this.validMoves).length === 0){
+                        status.textContent = originalText; status.classList.remove('ai-thinking'); return;
+                    }
+                    const moves = Object.entries(this.validMoves).map(([key, jumped]) => ({
+                        from: [this.selectedPiece.row, this.selectedPiece.col],
+                        to: key.split(',').map(Number),
+                        captures: jumped,
+                        path: jumped.path ? jumped.path.map(([r,c]) => [r,c]) : [key.split(',').map(Number)],
+                        piece: this.selectedPiece
+                    }));
+                    
+                    let bestMove = (level === 'easy') ? moves[Math.floor(Math.random() * moves.length)] : null;
+                    if (!bestMove) {
+                        let bestScore = -Infinity;
+                        for(const move of moves){
+                            const res = applyMoveToBoard(this.board, move, this.playerPiecesCount);
+                            const score = evaluatePosition(res.board, this.currentPlayer, res.counts);
+                            if(score > bestScore){ bestScore = score; bestMove = move; }
+                        }
+                    }
+                    const [r, c] = bestMove.to;
+                    if (generation !== this.aiGeneration) return;
+                    await this._movePiece(this.selectedPiece, r, c, bestMove.captures);
+                    status.classList.remove('ai-thinking');
+                    this.updateHud();
+                    if(this.inMultiJump) setTimeout(() => this.makeAiMove(), 220);
+                    return;
+                }
+
+                const move = chooseBestMove(this, level);
+                if(!move){
+                    this._endTurn(); this.updateBoard(); this.updateHud();
+                    status.textContent = originalText; status.classList.remove('ai-thinking');
+                    return;
+                }
+                const p = this.getPiece(move.from[0], move.from[1]);
+                if(!p) return;
+                
+                this._selectPiece(p);
+                this.updateBoard();
+
+                setTimeout(async () => {
+                    if (generation !== this.aiGeneration) return;
+                    await this._movePiece(p, move.to[0], move.to[1], move.captures);
+                    status.classList.remove('ai-thinking');
+                    this.updateHud();
+                    if(this.inMultiJump) setTimeout(() => this.makeAiMove(), 220);
+                }, 250);
+            } catch(e) {
+                console.error('AI error:', e);
+                status.textContent = originalText; status.classList.remove('ai-thinking');
+            }
+        }, 30);
+    }
+}
+
+// ==================== УПРАВЛЕНИЕ И UI ИНТЕРФЕЙС ====================
+let game = null;
+
+// Автоматически подгоняет поле под реально доступную ширину контейнера.
+// Никаких отдельных размеров для телефона, планшета или компьютера нет.
+function syncBoardSize() {
+    const wrapper = document.querySelector('.board-wrapper');
+    if (!wrapper) return;
+
+    const gameArea = document.querySelector('.game-area');
+    const availableWidth = gameArea?.clientWidth || wrapper.parentElement?.clientWidth || window.innerWidth;
+    if (!availableWidth) return;
+
+    // 12 клеток + две боковые шкалы координат + рамка.
+    // Размер вычисляется из реально доступной ширины, без device-breakpoint'ов.
+    const cellSize = Math.min(40, Math.max(1, availableWidth / 14.25));
+    document.documentElement.style.setProperty('--cell-size', `${cellSize}px`);
+}
+
+const boardResizeObserver = typeof ResizeObserver !== 'undefined'
+    ? new ResizeObserver(syncBoardSize)
+    : null;
+
+window.addEventListener('resize', syncBoardSize, { passive: true });
+window.addEventListener('orientationchange', syncBoardSize, { passive: true });
+
+
+if(localStorage.getItem('kazdoiba_save')) {
+    document.getElementById('btnLoadGame').style.display = 'block';
+}
+
+function startGame(loadSaved = false){
+    if(!loadSaved){
+        CURRENT_GAME_MODE = document.getElementById('gameMode').value || 'ffa';
+    }
+    document.getElementById('setup').classList.add('hidden');
+    document.getElementById('game').classList.add('active');
+
+    if(!document.getElementById('board').hasChildNodes()) {
+        const top = document.getElementById('topLabels'), bottom = document.getElementById('bottomLabels');
+        const left = document.getElementById('leftLabels'), right = document.getElementById('rightLabels');
+        colLabels.forEach(l => {
+            const s1 = document.createElement('span'); s1.textContent = l; top.appendChild(s1);
+            const s2 = document.createElement('span'); s2.textContent = l; bottom.appendChild(s2);
+        });
+        rowLabels.forEach(l => {
+            const s1 = document.createElement('span'); s1.textContent = l; left.appendChild(s1);
+            const s2 = document.createElement('span'); s2.textContent = l; right.appendChild(s2);
+        });
+
+        const boardEl = document.getElementById('board');
+        for(let r = 0; r < BOARD_ROWS; r++){
+            for(let c = 0; c < BOARD_COLS; c++){
+                const cell = document.createElement('div');
+                cell.classList.add('cell'); cell.dataset.row = r; cell.dataset.col = c;
+                if(OOB_SQUARES.some(([rr, cc]) => rr === r && cc === c)) cell.classList.add('oob');
+                else cell.classList.add((r + c) % 2 === 0 ? 'light' : 'dark');
+                cell.addEventListener('click', e => game.handleClick(parseInt(e.currentTarget.dataset.row), parseInt(e.currentTarget.dataset.col)));
+                boardEl.appendChild(cell);
+            }
+        }
+
+        const playersInfo = document.getElementById('playersInfo');
+        TURN_ORDER.forEach(p => {
+            const box = document.createElement('div');
+            box.classList.add('player-box', p); box.dataset.player = p;
+            const selectEl = document.getElementById(p + 'Type');
+            box.innerHTML = `<div>${PLAYER_LABELS[p] || p}</div>
+                <div class="type" style="font-size:0.9em;opacity:0.9">${selectEl.options[selectEl.selectedIndex].text}</div>
+                <div class="count">Тастар: 8</div>`;
+            playersInfo.appendChild(box);
+        });
+
+        // Угловые подписи идут по внешнему контуру доски.
+        // Нижний левый угол:
+        // A2 — «Адия» смотрит влево; A1+B1 — «Қаздойбы» смотрит вниз.
+        placeCornerText(ROW_MAP[2], COL_MAP['A'], "Адия", "corner-label adia-cell face-left");
+        placeCornerText(ROW_MAP[1], COL_MAP['A'], "Қаздойбы", "corner-label kaz-two-horizontal face-down");
+
+        // Нижний правый угол:
+        // S1 — «Адия» смотрит вниз; T1+T2 — «Қаздойбы» смотрит вправо.
+        placeCornerText(ROW_MAP[1], COL_MAP['S'], "Адия", "corner-label adia-cell face-down");
+        // Якорь T2: вертикальный блок высотой 2 клетки идёт вниз и занимает T2+T1.
+        placeCornerText(ROW_MAP[2], COL_MAP['T'], "Қаздойбы", "corner-label kaz-two-vertical face-right");
+
+        // Верхний правый угол:
+        // T11 — «Адия» смотрит вправо; S12+T12 — «Қаздойбы» смотрит вверх.
+        placeCornerText(ROW_MAP[11], COL_MAP['T'], "Адия", "corner-label adia-cell face-right");
+        placeCornerText(ROW_MAP[12], COL_MAP['S'], "Қаздойбы", "corner-label kaz-two-horizontal face-up");
+
+        // Верхний левый угол:
+        // B12 — «Адия» смотрит вверх; A12+A11 — «Қаздойбы» смотрит влево.
+        placeCornerText(ROW_MAP[12], COL_MAP['B'], "Адия", "corner-label adia-cell face-up");
+        // Якорь A12: вертикальный блок высотой 2 клетки идёт вниз и занимает A12+A11.
+        placeCornerText(ROW_MAP[12], COL_MAP['A'], "Қаздойбы", "corner-label kaz-two-vertical face-left");
+    }
+
+    const responsiveWrapper = document.querySelector('.board-wrapper');
+    if (boardResizeObserver && responsiveWrapper) boardResizeObserver.observe(responsiveWrapper);
+    requestAnimationFrame(syncBoardSize);
+
+    if(loadSaved) {
+        const savedData = localStorage.getItem('kazdoiba_save');
+        game = new KazdoibaGame(savedData);
+        document.getElementById('gameMode').value = game.gameMode || 'ffa';
+    } else {
+        localStorage.removeItem('kazdoiba_save');
+        game = new KazdoibaGame();
+    }
+}
+
+function placeCornerText(row, col, text, cls){
+    const cell = document.querySelector(`.cell[data-row="${row}"][data-col="${col}"]`);
+    if(cell) {
+        const slot = document.createElement('span');
+        slot.className = cls;
+
+        const label = document.createElement('span');
+        label.className = 'corner-label-text';
+        label.textContent = text;
+
+        slot.appendChild(label);
+        cell.appendChild(slot);
+    }
+}
+
+function undoMove() {
+    if(
+        !game ||
+        game.historyStack.length === 0 ||
+        game.inMultiJump ||
+        game.isAnimatingCapture
+    ) return;
+
+    // Отменяем все ранее запланированные таймеры AI.
+    game.aiGeneration++;
+
+    let previousState = null;
+
+    // Первый pop всегда отменяет хотя бы один полный ход.
+    previousState = game.historyStack.pop();
+    game._loadStateData(previousState, true);
+
+    // Если есть хотя бы один человек, не оставляем игру на ходе AI:
+    // откатываем ответы компьютеров до ближайшей точки,
+    // где человек действительно может сделать новый выбор.
+    const hasHumanPlayer = Object.values(game.playerTypes).some(type => type === 'human');
+
+    while (
+        hasHumanPlayer &&
+        game.playerTypes[game.currentPlayer] !== 'human' &&
+        game.historyStack.length > 0
+    ) {
+        previousState = game.historyStack.pop();
+        game._loadStateData(previousState, true);
+    }
+
+    CURRENT_GAME_MODE = game.gameMode || 'ffa';
+    document.getElementById('gameMode').value = CURRENT_GAME_MODE;
+
+    game._findAllMandatoryCaptures();
+    game.updateBoard();
+    game.updateHud();
+    game.renderHistory();
+    game.saveToLocalStorage();
+
+    // AI намеренно НЕ запускается автоматически после Undo.
+    // Если текущий игрок человек — он сразу может ходить.
+    // Если людей вообще нет, можно ещё раз нажать Undo или продолжить через перезапуск.
+}
+
+function showHint(){
+    if(!game || game.winner || game.playerTypes[game.currentPlayer] !== 'human') return;
+    const btn = document.getElementById('btnHint');
+    const origText = btn.textContent;
+    btn.textContent = "⏳ Есептелуде...";
+    
+    setTimeout(() => {
+        const bestMove = chooseBestMove(game, 'hard');
+        if(bestMove) {
+            const fromCell = document.querySelector(`.cell[data-row="${bestMove.from[0]}"][data-col="${bestMove.from[1]}"]`);
+            const toCell = document.querySelector(`.cell[data-row="${bestMove.to[0]}"][data-col="${bestMove.to[1]}"]`);
+            if(fromCell) fromCell.classList.add('hint-highlight');
+            if(toCell) toCell.classList.add('hint-highlight');
+            setTimeout(() => {
+                if(fromCell) fromCell.classList.remove('hint-highlight');
+                if(toCell) toCell.classList.remove('hint-highlight');
+            }, 2500);
+        } else {
+            alert("Жүріс мүмкіндігі табылған жоқ!");
+        }
+        btn.textContent = origText;
+    }, 30);
+}
+
+function restartGame(){ location.reload(); }
+function showRules(){ alert('Ережелер:\n• Жою міндетті\n• Сұлтан қарсы шетке жеткенде пайда болады\n• Ойын режимдері: жеке ойын және командалық ойын\n• Командалық ойында Көк пен Қара — бір команда, Қызыл мен Ақ — бір команда\n• Бір командадағы ойыншылар бір-бірінің тастарын жоймайды\n• Болдырмау батырмасын бірнеше рет қолдануға болады\n• Ойын автоматты түрде сақталады'); }
+
+console.log("🎮 Адия Қаздойбы сәтті жүктелді!");
+</script>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/network.js"></script>
+</body>
+</html>

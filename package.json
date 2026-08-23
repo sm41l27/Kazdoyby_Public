@@ -1,0 +1,17 @@
+{
+  "name": "kazdoyby-public-2v2-ai",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adiya Kazdoyby public 2v2 + AI server",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "socket.io": "^4.8.1"
+  }
+}
