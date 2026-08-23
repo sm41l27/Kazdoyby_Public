@@ -3,6 +3,7 @@
 
   const COLORS = ['blue', 'black', 'red', 'white'];
   const LABELS = { blue: '🔵 Көк', black: '⚫ Қара', red: '🔴 Қызыл', white: '⚪ Ақ' };
+  const MODE_LABELS = { ffa: '👤 Жеке ойын', teams: '🤝 Командалық ойын' };
 
   const NET = {
     active: false,
@@ -10,6 +11,7 @@
     roomCode: null,
     myColor: null,
     isHost: false,
+    gameMode: 'ffa',
     suppressSync: false,
     lastStatus: null
   };
@@ -38,6 +40,11 @@
     return /^[A-Z0-9]{4,12}$/.test(value);
   }
 
+  function readGameMode() {
+    const mode = document.getElementById('gameMode')?.value;
+    return mode === 'teams' ? 'teams' : 'ffa';
+  }
+
   function readPlayerTypes() {
     const result = {};
     for (const color of COLORS) {
@@ -47,10 +54,13 @@
     return result;
   }
 
-  function applySettings(playerTypes) {
+  function applySettings(gameMode, playerTypes) {
+    const normalizedMode = gameMode === 'teams' ? 'teams' : 'ffa';
+    NET.gameMode = normalizedMode;
+
     const mode = document.getElementById('gameMode');
-    if (mode) mode.value = 'teams';
-    CURRENT_GAME_MODE = 'teams';
+    if (mode) mode.value = normalizedMode;
+    CURRENT_GAME_MODE = normalizedMode;
 
     for (const color of COLORS) {
       const el = document.getElementById(color + 'Type');
@@ -67,9 +77,10 @@
     }
     const localStart = document.querySelector('.btn-start');
     const localLoad = document.getElementById('btnLoadGame');
-    if (localStart) localStart.disabled = true;
+    if (localStart) localStart.style.display = 'none';
     if (localLoad) localLoad.style.display = 'none';
     if (codeInput) codeInput.disabled = true;
+    if (window.KAZ_APP_UI) window.KAZ_APP_UI.hideEntryNavigation();
   }
 
   function roomText(status) {
@@ -88,7 +99,8 @@
     const me = NET.myColor ? LABELS[NET.myColor] : '—';
     const host = NET.isHost ? ' 👑 Сіз бөлме иесісіз.' : '';
     const wait = NET.lastStatus ? ` ${roomText(NET.lastStatus)}.` : '';
-    setNetStatus(`Бөлме: ${code} | Сіз: ${me}.${host}${wait}${extra ? '<br>' + extra : ''}`);
+    const mode = MODE_LABELS[NET.gameMode] || MODE_LABELS.ffa;
+    setNetStatus(`Бөлме: ${code} | Режим: ${mode} | Сіз: ${me}.${host}${wait}${extra ? '<br>' + extra : ''}`);
     refreshButtons();
   }
 
@@ -115,14 +127,14 @@
   }
 
   if (typeof io !== 'function') {
-    setNetStatus('❌ Socket.IO жүктелмеді. Ойынды index.html файлын екі рет басып емес, Node.js сервері арқылы ашыңыз.');
+    setNetStatus('❌ Socket.IO жүктелмеді. Ойынды Node.js сервері арқылы ашыңыз.');
     return;
   }
 
   const socket = io();
 
   socket.on('connect', () => {
-    if (!NET.active) setNetStatus('✅ Серверге қосылдық. Бөлме құрыңыз немесе бөлме кодын енгізіңіз.');
+    if (!NET.active) setNetStatus('✅ Серверге қосылдық. Режимді және ойыншыларды таңдаңыз, содан кейін бөлме құрыңыз немесе кодпен қосылыңыз.');
   });
 
   socket.on('connect_error', () => {
@@ -143,13 +155,11 @@
       return;
     }
 
-    const mode = document.getElementById('gameMode');
-    if (mode) mode.value = 'teams';
-
+    const gameMode = readGameMode();
     createBtn.disabled = true;
     joinBtn.disabled = true;
     setNetStatus('⏳ Бөлме құрылып жатыр...');
-    socket.emit('create-room', { gameMode: 'teams', playerTypes, code: requestedCode || null });
+    socket.emit('create-room', { gameMode, playerTypes, code: requestedCode || null });
   });
 
   joinBtn?.addEventListener('click', () => {
@@ -202,11 +212,13 @@
     NET.roomCode = data.code;
     NET.myColor = data.color;
     NET.isHost = !!data.isHost;
+    NET.gameMode = data.gameMode === 'teams' ? 'teams' : 'ffa';
     NET.lastStatus = data.status || null;
 
     if (codeInput) codeInput.value = data.code;
     putRoomInUrl(data.code);
-    applySettings(data.playerTypes || {});
+    if (window.KAZ_APP_UI) window.KAZ_APP_UI.showOnline();
+    applySettings(NET.gameMode, data.playerTypes || {});
     lockSetupForNetwork();
     refreshStatus('⏳ Қалған адам ойыншыларын күтеміз...');
   }
@@ -224,6 +236,7 @@
 
   socket.on('room-status', status => {
     NET.lastStatus = status;
+    if (status?.gameMode) NET.gameMode = status.gameMode === 'teams' ? 'teams' : 'ffa';
     if (NET.active) {
       refreshStatus(status.started ? '🎮 Ойын басталды.' : '⏳ Ойыншыларды күтеміз...');
     }
@@ -248,8 +261,8 @@
     refreshStatus(`⚠️ ${label} бөлмеден шықты. Бос орынға басқа ойыншы қосыла алады.`);
   });
 
-  function ensureGameStarted(playerTypes) {
-    applySettings(playerTypes || {});
+  function ensureGameStarted(gameMode, playerTypes) {
+    applySettings(gameMode, playerTypes || {});
     if (!game) {
       startGame(false);
     }
@@ -258,12 +271,12 @@
     const setup = document.getElementById('setup');
     if (setup) setup.classList.add('hidden');
 
-    refreshStatus('🎮 2×2 ойыны басталды.');
+    refreshStatus(`🎮 ${MODE_LABELS[NET.gameMode]} басталды.`);
     setTimeout(maybeRunAi, 180);
   }
 
   socket.on('game-start', data => {
-    ensureGameStarted(data.playerTypes || {});
+    ensureGameStarted(data.gameMode, data.playerTypes || {});
   });
 
   function applyRemoteState(payload) {
@@ -287,7 +300,7 @@
   socket.on('game-state', applyRemoteState);
 
   socket.on('room-restart', data => {
-    applySettings(data.playerTypes || {});
+    applySettings(data.gameMode, data.playerTypes || {});
     NET.suppressSync = true;
     try {
       localStorage.removeItem('kazdoiba_save');
