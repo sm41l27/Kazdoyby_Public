@@ -13,6 +13,7 @@ const io = new Server(server, {
 const PORT = process.env.PORT || 3000;
 const COLORS = ['blue', 'black', 'red', 'white'];
 const ALLOWED_TYPES = new Set(['human', 'ai-easy', 'ai-medium', 'ai-hard']);
+const ALLOWED_MODES = new Set(['ffa', 'teams']);
 const rooms = new Map();
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -49,6 +50,10 @@ function cleanPlayerTypes(input) {
   return result;
 }
 
+function cleanGameMode(value) {
+  return ALLOWED_MODES.has(value) ? value : 'ffa';
+}
+
 function humanColors(room) {
   return COLORS.filter(c => room.playerTypes[c] === 'human');
 }
@@ -60,6 +65,7 @@ function connectedHumans(room) {
 function roomStatus(room) {
   return {
     code: room.code,
+    gameMode: room.gameMode,
     started: room.started,
     playerTypes: room.playerTypes,
     connected: connectedHumans(room),
@@ -80,7 +86,7 @@ function maybeStart(room) {
     room.expectedPlayer = 'blue';
     io.to(room.code).emit('game-start', {
       code: room.code,
-      gameMode: 'teams',
+      gameMode: room.gameMode,
       playerTypes: room.playerTypes
     });
     emitStatus(room);
@@ -135,9 +141,7 @@ function removeSocketFromRoom(socket, { announce = true } = {}) {
   }
 
   emitStatus(room);
-  if (announce) {
-    io.to(room.code).emit('player-left', { color: leavingColor });
-  }
+  if (announce) io.to(room.code).emit('player-left', { color: leavingColor });
   return { room, color: leavingColor };
 }
 
@@ -167,6 +171,7 @@ io.on('connection', (socket) => {
   socket.on('create-room', (payload = {}) => {
     if (socket.data.roomCode) return;
 
+    const gameMode = cleanGameMode(payload.gameMode);
     const playerTypes = cleanPlayerTypes(payload.playerTypes);
     const humans = COLORS.filter(c => playerTypes[c] === 'human');
     if (humans.length === 0) {
@@ -187,6 +192,7 @@ io.on('connection', (socket) => {
     const code = requestedCode || makeRoomCode();
     const room = {
       code,
+      gameMode,
       hostSocketId: socket.id,
       playerTypes,
       slots: { blue: null, black: null, red: null, white: null },
@@ -208,6 +214,7 @@ io.on('connection', (socket) => {
       code,
       color,
       isHost: true,
+      gameMode,
       playerTypes,
       status: roomStatus(room)
     });
@@ -243,6 +250,7 @@ io.on('connection', (socket) => {
       code,
       color,
       isHost: false,
+      gameMode: room.gameMode,
       playerTypes: room.playerTypes,
       status: roomStatus(room)
     });
@@ -252,7 +260,7 @@ io.on('connection', (socket) => {
     if (room.started) {
       socket.emit('game-start', {
         code: room.code,
-        gameMode: 'teams',
+        gameMode: room.gameMode,
         playerTypes: room.playerTypes
       });
       if (room.state) {
@@ -322,7 +330,7 @@ io.on('connection', (socket) => {
       !parsed ||
       !Array.isArray(parsed.board) ||
       !COLORS.includes(parsed.currentPlayer) ||
-      parsed.gameMode !== 'teams'
+      parsed.gameMode !== room.gameMode
     ) return;
 
     room.state = state;
@@ -345,7 +353,7 @@ io.on('connection', (socket) => {
     room.expectedPlayer = 'blue';
     io.to(code).emit('room-restart', {
       code,
-      gameMode: 'teams',
+      gameMode: room.gameMode,
       playerTypes: room.playerTypes
     });
   });
