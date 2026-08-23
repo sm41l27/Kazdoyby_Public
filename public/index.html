@@ -419,6 +419,45 @@
         .network-help { margin-top:8px; text-align:center; color:#555; font-size:.92rem; }
         .network-code { font-size:1.25rem; color:#d63447; letter-spacing:.08em; }
 
+        /* ===== БАСТЫ БЕТ ЖӘНЕ РЕЖИМ ТАҢДАУ ===== */
+        .home-screen {
+            max-width: 900px;
+            margin: 30px auto 10px;
+            text-align: center;
+        }
+        .home-screen h2 { color:#667eea; font-size:clamp(1.5rem,4vw,2rem); margin-bottom:10px; }
+        .home-screen p { color:#666; margin-bottom:24px; font-size:1.05rem; }
+        .home-mode-grid {
+            display:grid;
+            grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+            gap:18px;
+        }
+        .home-mode-btn {
+            border:0;
+            border-radius:20px;
+            padding:28px 20px;
+            cursor:pointer;
+            color:white;
+            font-weight:800;
+            font-size:1.25rem;
+            box-shadow:0 10px 28px rgba(0,0,0,.16);
+            transition:transform .2s, box-shadow .2s;
+        }
+        .home-mode-btn:hover { transform:translateY(-3px); box-shadow:0 14px 34px rgba(0,0,0,.22); }
+        .home-mode-btn.online { background:linear-gradient(135deg,#667eea,#764ba2); }
+        .home-mode-btn.offline { background:linear-gradient(135deg,#43a047,#1b5e20); }
+        .home-mode-btn small { display:block; margin-top:8px; font-weight:500; opacity:.95; font-size:.9rem; }
+        .mode-back-wrap { max-width:800px; margin:0 auto 12px; text-align:left; display:none; }
+        .mode-back-btn {
+            border:0; border-radius:10px; padding:10px 14px; cursor:pointer; font-weight:700;
+            background:#eef0ff; color:#4c63d2;
+        }
+        .mode-heading { text-align:center; color:#667eea; margin-bottom:14px; font-size:1.1rem; font-weight:800; }
+        #networkPanel, #setup { display:none; }
+        #setup.mode-visible { display:block; }
+        #setup.hidden { display:none !important; }
+        #networkPanel.mode-visible { display:block; }
+
     </style>
 </head>
 <body>
@@ -426,6 +465,25 @@
     <h1>🎮 Адия Қаздойбы</h1>
     <p class="subtitle">Қазақ дойбысы</p>
     
+
+    <div class="home-screen" id="homeScreen">
+        <h2>Ойын түрін таңдаңыз</h2>
+        <p>Интернет арқылы ойнаңыз немесе бір құрылғыда офлайн ойынды бастаңыз.</p>
+        <div class="home-mode-grid">
+            <button class="home-mode-btn online" id="btnOnlineMode" type="button">
+                🌐 Онлайн ойын
+                <small>Бөлме құру, кодпен қосылу, адам және ЖИ таңдау</small>
+            </button>
+            <button class="home-mode-btn offline" id="btnOfflineMode" type="button">
+                📴 Офлайн ойын
+                <small>Бір құрылғыда адаммен немесе ЖИ-мен ойнау</small>
+            </button>
+        </div>
+    </div>
+
+    <div class="mode-back-wrap" id="modeBackWrap">
+        <button class="mode-back-btn" id="btnBackHome" type="button">← Басты бетке</button>
+    </div>
 
     <div class="network-panel" id="networkPanel">
         <h2>🌐 Онлайн ойын</h2>
@@ -438,14 +496,15 @@
             <button class="network-btn leave" id="btnLeaveRoom" type="button" style="display:none">🚪 Бөлмеден шығу</button>
         </div>
         <div class="network-status" id="networkStatus">
-            2×2 ойыны үшін төменнен әр түске Адам немесе ЖИ таңдаңыз. Бөлме құрушы «Бөлме құру» батырмасын басады.
+            Төменнен ойын режимін және әр түске Адам немесе ЖИ таңдаңыз. Содан кейін бөлме құрыңыз немесе кодпен қосылыңыз.
         </div>
         <div class="network-help">
-            Командалар: 🔵 Көк + ⚫ Қара және 🔴 Қызыл + ⚪ Ақ. ЖИ кез келген түсте ойнай алады. Бөлме кодын өзіңіз енгізуге немесе автоматты код алуға болады.
+            «Жеке ойын» және «Командалық ойын» режимдерінің бірін таңдауға болады. Командалық ойында 🔵 Көк + ⚫ Қара және 🔴 Қызыл + ⚪ Ақ ойнайды.
         </div>
     </div>
 
     <div class="setup" id="setup">
+        <div class="mode-heading" id="selectedPlayModeTitle"></div>
         <h2>⚙️ Ойын параметрлері</h2>
 
         <div class="player-config mode-config">
@@ -2403,6 +2462,79 @@ function restartGame(){ location.reload(); }
 function showRules(){ alert('Ережелер:\n• Жою міндетті\n• Сұлтан қарсы шетке жеткенде пайда болады\n• Ойын режимдері: жеке ойын және командалық ойын\n• Командалық ойында Көк пен Қара — бір команда, Қызыл мен Ақ — бір команда\n• Бір командадағы ойыншылар бір-бірінің тастарын жоймайды\n• Болдырмау батырмасын бірнеше рет қолдануға болады\n• Ойын автоматты түрде сақталады'); }
 
 console.log("🎮 Адия Қаздойбы сәтті жүктелді!");
+</script>
+<script>
+// ===== БАСТЫ БЕТ / ОНЛАЙН / ОФЛАЙН НАВИГАЦИЯСЫ =====
+(() => {
+    const home = document.getElementById('homeScreen');
+    const setup = document.getElementById('setup');
+    const network = document.getElementById('networkPanel');
+    const backWrap = document.getElementById('modeBackWrap');
+    const title = document.getElementById('selectedPlayModeTitle');
+    const localStart = document.querySelector('.btn-start');
+    const localLoad = document.getElementById('btnLoadGame');
+
+    let appMode = 'home';
+
+    function showHome() {
+        appMode = 'home';
+        home.style.display = '';
+        setup.classList.remove('mode-visible');
+        network.classList.remove('mode-visible');
+        backWrap.style.display = 'none';
+    }
+
+    function showOnline() {
+        appMode = 'online';
+        home.style.display = 'none';
+        setup.classList.add('mode-visible');
+        network.classList.add('mode-visible');
+        backWrap.style.display = '';
+        title.textContent = '🌐 Онлайн ойын параметрлері';
+        if (localStart) localStart.style.display = 'none';
+        if (localLoad) localLoad.style.display = 'none';
+    }
+
+    function showOffline() {
+        appMode = 'offline';
+        home.style.display = 'none';
+        network.classList.remove('mode-visible');
+        setup.classList.add('mode-visible');
+        backWrap.style.display = '';
+        title.textContent = '📴 Офлайн ойын параметрлері';
+        if (localStart) localStart.style.display = '';
+        if (localLoad) {
+            localLoad.style.display = localStorage.getItem('kazdoiba_save') ? 'block' : 'none';
+        }
+    }
+
+    function hideEntryNavigation() {
+        home.style.display = 'none';
+        backWrap.style.display = 'none';
+    }
+
+    document.getElementById('btnOnlineMode')?.addEventListener('click', showOnline);
+    document.getElementById('btnOfflineMode')?.addEventListener('click', showOffline);
+    document.getElementById('btnBackHome')?.addEventListener('click', showHome);
+
+    const originalStartGame = window.startGame;
+    window.startGame = function(...args) {
+        hideEntryNavigation();
+        return originalStartGame.apply(this, args);
+    };
+
+    window.KAZ_APP_UI = {
+        get mode() { return appMode; },
+        showHome,
+        showOnline,
+        showOffline,
+        hideEntryNavigation
+    };
+
+    const linkedRoom = new URLSearchParams(location.search).get('room');
+    if (linkedRoom) showOnline();
+    else showHome();
+})();
 </script>
 <script src="/socket.io/socket.io.js"></script>
 <script src="/network.js"></script>
