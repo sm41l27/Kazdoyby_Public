@@ -404,6 +404,8 @@
         }
         .network-btn.secondary { background: linear-gradient(135deg,#43a047,#1b5e20); }
         .network-btn.copy { background: linear-gradient(135deg,#ff9800,#ef6c00); }
+        .network-btn.change { background: linear-gradient(135deg,#00838f,#006064); }
+        .network-btn.leave { background: linear-gradient(135deg,#e53935,#b71c1c); }
         .network-btn:disabled { background:#aaa; cursor:not-allowed; }
         .network-status {
             margin-top: 12px;
@@ -426,18 +428,20 @@
     
 
     <div class="network-panel" id="networkPanel">
-        <h2>🌐 Онлайн ойын / Публичный сервер</h2>
+        <h2>🌐 Онлайн ойын</h2>
         <div class="network-row">
-            <button class="network-btn" id="btnCreateRoom" type="button">➕ Создать комнату</button>
-            <input id="roomCodeInput" maxlength="6" placeholder="Код комнаты, например ABC123">
-            <button class="network-btn secondary" id="btnJoinRoom" type="button">🚪 Войти</button>
-            <button class="network-btn copy" id="btnCopyInvite" type="button" style="display:none">🔗 Копировать ссылку</button>
+            <button class="network-btn" id="btnCreateRoom" type="button">➕ Бөлме құру</button>
+            <input id="roomCodeInput" maxlength="12" placeholder="Бөлме коды, мысалы ABC123">
+            <button class="network-btn secondary" id="btnJoinRoom" type="button">🚪 Бөлмеге кіру</button>
+            <button class="network-btn copy" id="btnCopyInvite" type="button" style="display:none">🔗 Сілтемені көшіру</button>
+            <button class="network-btn change" id="btnChangeRoomCode" type="button" style="display:none">✏️ Кодты өзгерту</button>
+            <button class="network-btn leave" id="btnLeaveRoom" type="button" style="display:none">🚪 Бөлмеден шығу</button>
         </div>
         <div class="network-status" id="networkStatus">
-            Для игры 2×2 выберите ниже, кто человек, а кто ИИ. Затем создатель нажимает «Создать комнату».
+            2×2 ойыны үшін төменнен әр түске Адам немесе ЖИ таңдаңыз. Бөлме құрушы «Бөлме құру» батырмасын басады.
         </div>
         <div class="network-help">
-            Команды: 🔵 Көк + ⚫ Қара против 🔴 Қызыл + ⚪ Ақ. ИИ может занимать любой цвет.
+            Командалар: 🔵 Көк + ⚫ Қара және 🔴 Қызыл + ⚪ Ақ. ЖИ кез келген түсте ойнай алады. Бөлме кодын өзіңіз енгізуге немесе автоматты код алуға болады.
         </div>
     </div>
 
@@ -453,19 +457,19 @@
         </div>
         <div class="player-config">
             <label>🔵 Көк ойыншы:</label>
-            <select id="blueType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 Компьютер (Жеңіл)</option><option value="ai-medium">🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+            <select id="blueType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 ЖИ (Жеңіл)</option><option value="ai-medium">🤖 ЖИ (Орта)</option><option value="ai-hard">🤖 ЖИ (Қиын)</option></select>
         </div>
         <div class="player-config">
             <label>⚫ Қара ойыншы:</label>
-            <select id="blackType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 Компьютер (Жеңіл)</option><option value="ai-medium" selected>🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+            <select id="blackType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 ЖИ (Жеңіл)</option><option value="ai-medium" selected>🤖 ЖИ (Орта)</option><option value="ai-hard">🤖 ЖИ (Қиын)</option></select>
         </div>
         <div class="player-config">
             <label>🔴 Қызыл ойыншы:</label>
-            <select id="redType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 Компьютер (Жеңіл)</option><option value="ai-medium" selected>🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+            <select id="redType"><option value="human">👤 Адам</option><option value="ai-easy">🤖 ЖИ (Жеңіл)</option><option value="ai-medium" selected>🤖 ЖИ (Орта)</option><option value="ai-hard">🤖 ЖИ (Қиын)</option></select>
         </div>
         <div class="player-config">
             <label>⚪ Ақ ойыншы:</label>
-            <select id="whiteType"><option value="human">👤 Адам</option><option value="ai-easy" selected>🤖 Компьютер (Жеңіл)</option><option value="ai-medium">🤖 Компьютер (Орта)</option><option value="ai-hard">🤖 Компьютер (Қиын)</option></select>
+            <select id="whiteType"><option value="human">👤 Адам</option><option value="ai-easy" selected>🤖 ЖИ (Жеңіл)</option><option value="ai-medium">🤖 ЖИ (Орта)</option><option value="ai-hard">🤖 ЖИ (Қиын)</option></select>
         </div>
         
         <div class="setup-actions">
