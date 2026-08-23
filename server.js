@@ -18,6 +18,18 @@ const rooms = new Map();
 app.use(express.static(path.join(__dirname, 'public')));
 app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
 
+function normalizeRoomCode(value) {
+  return String(value || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '')
+    .slice(0, 12);
+}
+
+function isValidRoomCode(code) {
+  return /^[A-Z0-9]{4,12}$/.test(code);
+}
+
 function makeRoomCode() {
   const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   for (let attempt = 0; attempt < 100; attempt++) {
@@ -89,9 +101,66 @@ function authorizedToSubmit(room, socket) {
   const expected = room.expectedPlayer || 'blue';
   const type = room.playerTypes[expected];
   if (!type) return false;
-
   if (type === 'human') return room.slots[expected] === socket.id;
   return room.hostSocketId === socket.id;
+}
+
+function removeSocketFromRoom(socket, { announce = true } = {}) {
+  const code = socket.data.roomCode;
+  const room = code && rooms.get(code);
+  if (!room) {
+    socket.data.roomCode = null;
+    socket.data.color = null;
+    return null;
+  }
+
+  const leavingColor = socket.data.color || null;
+  for (const color of COLORS) {
+    if (room.slots[color] === socket.id) room.slots[color] = null;
+  }
+
+  socket.leave(code);
+  socket.data.roomCode = null;
+  socket.data.color = null;
+
+  const remainingIds = COLORS.map(c => room.slots[c]).filter(Boolean);
+  if (remainingIds.length === 0) {
+    rooms.delete(code);
+    return { room: null, color: leavingColor };
+  }
+
+  if (room.hostSocketId === socket.id) {
+    room.hostSocketId = remainingIds[0];
+    io.to(room.hostSocketId).emit('host-changed', { isHost: true });
+  }
+
+  emitStatus(room);
+  if (announce) {
+    io.to(room.code).emit('player-left', { color: leavingColor });
+  }
+  return { room, color: leavingColor };
+}
+
+function changeRoomCode(room, newCode) {
+  const oldCode = room.code;
+  const socketIds = COLORS.map(c => room.slots[c]).filter(Boolean);
+
+  rooms.delete(oldCode);
+  room.code = newCode;
+  rooms.set(newCode, room);
+
+  for (const socketId of socketIds) {
+    const member = io.sockets.sockets.get(socketId);
+    if (!member) continue;
+    member.leave(oldCode);
+    member.join(newCode);
+    member.data.roomCode = newCode;
+  }
+
+  for (const socketId of socketIds) {
+    io.to(socketId).emit('room-code-changed', { oldCode, code: newCode });
+  }
+  emitStatus(room);
 }
 
 io.on('connection', (socket) => {
@@ -101,11 +170,21 @@ io.on('connection', (socket) => {
     const playerTypes = cleanPlayerTypes(payload.playerTypes);
     const humans = COLORS.filter(c => playerTypes[c] === 'human');
     if (humans.length === 0) {
-      socket.emit('room-error', 'Нужен хотя бы один человек. Остальные места можно отдать ИИ.');
+      socket.emit('room-error', 'Кемінде бір ойыншы «Адам» болуы керек. Қалған орындарды ЖИ-ға беруге болады.');
       return;
     }
 
-    const code = makeRoomCode();
+    const requestedCode = normalizeRoomCode(payload.code);
+    if (requestedCode && !isValidRoomCode(requestedCode)) {
+      socket.emit('room-error', 'Бөлме коды 4–12 таңбадан тұруы керек. Тек латын әріптері мен сандарды қолданыңыз.');
+      return;
+    }
+    if (requestedCode && rooms.has(requestedCode)) {
+      socket.emit('room-error', 'Бұл бөлме коды бос емес. Басқа код таңдаңыз.');
+      return;
+    }
+
+    const code = requestedCode || makeRoomCode();
     const room = {
       code,
       hostSocketId: socket.id,
@@ -138,21 +217,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('join-room', (payload = {}) => {
-    const code = String(payload.code || '').trim().toUpperCase();
+    const code = normalizeRoomCode(payload.code);
     const room = rooms.get(code);
 
     if (!room) {
-      socket.emit('room-error', 'Комната не найдена. Проверьте код.');
+      socket.emit('room-error', 'Бөлме табылмады. Кодты тексеріңіз.');
       return;
     }
     if (socket.data.roomCode) {
-      socket.emit('room-error', 'Вы уже подключены к комнате.');
+      socket.emit('room-error', 'Сіз қазірдің өзінде бір бөлмеге қосылғансыз.');
       return;
     }
 
     const color = assignHumanSlot(room, socket.id);
     if (!color) {
-      socket.emit('room-error', 'Все человеческие места в этой комнате уже заняты.');
+      socket.emit('room-error', 'Бұл бөлмедегі адамға арналған орындардың бәрі бос емес.');
       return;
     }
 
@@ -186,12 +265,46 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('change-room-code', (payload = {}) => {
+    const oldCode = socket.data.roomCode;
+    const room = oldCode && rooms.get(oldCode);
+    if (!room) {
+      socket.emit('room-error', 'Алдымен бөлмеге қосылыңыз.');
+      return;
+    }
+    if (room.hostSocketId !== socket.id) {
+      socket.emit('room-error', 'Бөлме кодын тек бөлме иесі өзгерте алады.');
+      return;
+    }
+
+    const newCode = normalizeRoomCode(payload.code);
+    if (!isValidRoomCode(newCode)) {
+      socket.emit('room-error', 'Жаңа код 4–12 таңбадан тұруы керек. Тек латын әріптері мен сандарды қолданыңыз.');
+      return;
+    }
+    if (newCode === oldCode) {
+      socket.emit('room-error', 'Жаңа код қазіргі кодпен бірдей.');
+      return;
+    }
+    if (rooms.has(newCode)) {
+      socket.emit('room-error', 'Бұл кодты басқа бөлме қолданып жатыр. Басқа код таңдаңыз.');
+      return;
+    }
+
+    changeRoomCode(room, newCode);
+  });
+
+  socket.on('leave-room', (_payload = {}, ack) => {
+    removeSocketFromRoom(socket, { announce: true });
+    if (typeof ack === 'function') ack({ ok: true });
+  });
+
   socket.on('game-state', (payload = {}) => {
     const code = socket.data.roomCode;
     const room = code && rooms.get(code);
     if (!room || !room.started) return;
     if (!authorizedToSubmit(room, socket)) {
-      socket.emit('room-error', 'Сейчас не ваш ход.');
+      socket.emit('room-error', 'Қазір сіздің кезегіңіз емес.');
       return;
     }
 
@@ -238,32 +351,10 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    const code = socket.data.roomCode;
-    const room = code && rooms.get(code);
-    if (!room) return;
-
-    for (const color of COLORS) {
-      if (room.slots[color] === socket.id) room.slots[color] = null;
-    }
-
-    const remainingIds = COLORS.map(c => room.slots[c]).filter(Boolean);
-    if (remainingIds.length === 0) {
-      rooms.delete(code);
-      return;
-    }
-
-    if (room.hostSocketId === socket.id) {
-      room.hostSocketId = remainingIds[0];
-      io.to(room.hostSocketId).emit('host-changed', { isHost: true });
-    }
-
-    emitStatus(room);
-    io.to(code).emit('player-disconnected', {
-      color: socket.data.color || null
-    });
+    removeSocketFromRoom(socket, { announce: true });
   });
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`🎮 Адия Қаздойбы public server started on port ${PORT}`);
+  console.log(`🎮 Адия Қаздойбы сервері ${PORT} портында іске қосылды`);
 });
