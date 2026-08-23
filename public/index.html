@@ -326,12 +326,32 @@
         .piece.black { background: radial-gradient(circle at 30% 25%, #555555, #050505); border-color: #b0b0b0; color: #ffffff; }
         .piece.red { background: radial-gradient(circle at 30% 25%, #ffb3b3, #d00000); border-color: #ffe0e0; color: #ffffff; }
         .piece.white { background: radial-gradient(circle at 30% 25%, #ffffff, #d0d0d0); border-color: #aaaaaa; color: #222; }
+        /* Дамка: цвет шашки остаётся полностью виден. Вместо большой короны — золотые кольца. */
         .piece.sultan {
-            font-size: 1.3em; border: 3px solid rgb(255, 215, 0);
-            box-shadow: 0 3px 0 rgba(0,0,0,0.4), 0 6px 10px rgba(0,0,0,0.5), 0 0 18px rgba(255, 215, 0, 0.9);
+            position: relative;
+            border: 3px solid rgb(255, 215, 0);
+            box-shadow:
+                0 3px 0 rgba(0,0,0,0.4),
+                0 6px 10px rgba(0,0,0,0.5),
+                0 0 14px rgba(255, 215, 0, 0.85);
             animation: glow 1.5s infinite alternate;
         }
-        @keyframes glow { from { box-shadow: 0 0 15px rgba(255, 215, 0, 0.8); } to { box-shadow: 0 0 25px rgba(255, 215, 0, 1); } }
+        .piece.sultan::after {
+            content: '';
+            position: absolute;
+            inset: 16%;
+            border: max(2px, calc(var(--cell-size) * 0.055)) solid rgba(255, 215, 0, 0.98);
+            border-radius: 50%;
+            box-shadow:
+                0 0 0 max(1px, calc(var(--cell-size) * 0.025)) rgba(80, 55, 0, 0.30),
+                inset 0 0 8px rgba(255, 235, 120, 0.55);
+            pointer-events: none;
+            z-index: 3;
+        }
+        @keyframes glow {
+            from { box-shadow: 0 3px 0 rgba(0,0,0,0.4), 0 6px 10px rgba(0,0,0,0.5), 0 0 10px rgba(255, 215, 0, 0.65); }
+            to   { box-shadow: 0 3px 0 rgba(0,0,0,0.4), 0 6px 10px rgba(0,0,0,0.5), 0 0 20px rgba(255, 215, 0, 1); }
+        }
 
         .history-panel {
             background: #fdfdfd; width: min(100%, 300px); border-radius: 15px; padding: clamp(12px, 2vw, 20px);
@@ -1763,7 +1783,8 @@ class KazdoibaGame {
                 }
                 if(pieceState.isSultan){
                     pieceDom.classList.add('sultan');
-                    pieceDom.textContent='👑';
+                    // Большая корона убрана: дамку показывает золотое двойное кольцо через CSS.
+                    pieceDom.textContent='';
                 } else { pieceDom.textContent=''; }
 
                 const captureKey = `${r},${c}`;
