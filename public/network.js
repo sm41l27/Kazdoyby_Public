@@ -20,9 +20,22 @@
   const createBtn = document.getElementById('btnCreateRoom');
   const joinBtn = document.getElementById('btnJoinRoom');
   const copyBtn = document.getElementById('btnCopyInvite');
+  const changeCodeBtn = document.getElementById('btnChangeRoomCode');
+  const leaveBtn = document.getElementById('btnLeaveRoom');
 
   function setNetStatus(html) {
     if (statusEl) statusEl.innerHTML = html;
+  }
+
+  function normalizeCode(value) {
+    return String(value || '')
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '')
+      .slice(0, 12);
+  }
+
+  function validCode(value) {
+    return /^[A-Z0-9]{4,12}$/.test(value);
   }
 
   function readPlayerTypes() {
@@ -56,19 +69,27 @@
     const localLoad = document.getElementById('btnLoadGame');
     if (localStart) localStart.disabled = true;
     if (localLoad) localLoad.style.display = 'none';
+    if (codeInput) codeInput.disabled = true;
   }
 
   function roomText(status) {
     if (!status) return '';
-    return `Игроки: ${status.connected}/${status.needed}`;
+    return `Ойыншылар: ${status.connected}/${status.needed}`;
+  }
+
+  function refreshButtons() {
+    if (copyBtn) copyBtn.style.display = NET.active ? '' : 'none';
+    if (leaveBtn) leaveBtn.style.display = NET.active ? '' : 'none';
+    if (changeCodeBtn) changeCodeBtn.style.display = NET.active && NET.isHost ? '' : 'none';
   }
 
   function refreshStatus(extra = '') {
     const code = NET.roomCode ? `<span class="network-code">${NET.roomCode}</span>` : '—';
     const me = NET.myColor ? LABELS[NET.myColor] : '—';
-    const host = NET.isHost ? ' 👑 Вы хозяин комнаты.' : '';
+    const host = NET.isHost ? ' 👑 Сіз бөлме иесісіз.' : '';
     const wait = NET.lastStatus ? ` ${roomText(NET.lastStatus)}.` : '';
-    setNetStatus(`Комната: ${code} | Вы: ${me}.${host}${wait}${extra ? '<br>' + extra : ''}`);
+    setNetStatus(`Бөлме: ${code} | Сіз: ${me}.${host}${wait}${extra ? '<br>' + extra : ''}`);
+    refreshButtons();
   }
 
   function inviteUrl() {
@@ -76,34 +97,49 @@
     return `${location.origin}/?room=${encodeURIComponent(NET.roomCode)}`;
   }
 
+  function putRoomInUrl(code) {
+    try {
+      const url = new URL(location.href);
+      if (code) url.searchParams.set('room', code);
+      else url.searchParams.delete('room');
+      history.replaceState(null, '', url);
+    } catch (_) {}
+  }
+
   if (codeInput) {
     const q = new URLSearchParams(location.search).get('room');
-    if (q) codeInput.value = q.toUpperCase().slice(0, 6);
+    if (q) codeInput.value = normalizeCode(q);
     codeInput.addEventListener('input', () => {
-      codeInput.value = codeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+      codeInput.value = normalizeCode(codeInput.value);
     });
   }
 
   if (typeof io !== 'function') {
-    setNetStatus('❌ Socket.IO не загрузился. Открывайте игру через Node.js сервер, а не двойным кликом по index.html.');
+    setNetStatus('❌ Socket.IO жүктелмеді. Ойынды index.html файлын екі рет басып емес, Node.js сервері арқылы ашыңыз.');
     return;
   }
 
   const socket = io();
 
   socket.on('connect', () => {
-    if (!NET.active) setNetStatus('✅ Сервер доступен. Создайте комнату или введите код.');
+    if (!NET.active) setNetStatus('✅ Серверге қосылдық. Бөлме құрыңыз немесе бөлме кодын енгізіңіз.');
   });
 
   socket.on('connect_error', () => {
-    setNetStatus('❌ Нет соединения с сервером. Обновите страницу через несколько секунд.');
+    setNetStatus('❌ Сервермен байланыс жоқ. Бірнеше секундтан кейін бетті жаңартып көріңіз.');
   });
 
   createBtn?.addEventListener('click', () => {
     const playerTypes = readPlayerTypes();
     const humans = COLORS.filter(c => playerTypes[c] === 'human');
     if (humans.length === 0) {
-      alert('Выберите хотя бы одного человека.');
+      alert('Кемінде бір түске «Адам» таңдаңыз.');
+      return;
+    }
+
+    const requestedCode = normalizeCode(codeInput?.value || '');
+    if (requestedCode && !validCode(requestedCode)) {
+      alert('Өз кодыңызды қолдансаңыз, ол 4–12 таңбадан тұруы керек. Тек латын әріптері мен сандарды қолданыңыз. Кодты бос қалдырсаңыз, сервер өзі код береді.');
       return;
     }
 
@@ -112,29 +148,53 @@
 
     createBtn.disabled = true;
     joinBtn.disabled = true;
-    setNetStatus('⏳ Создаю комнату...');
-    socket.emit('create-room', { gameMode: 'teams', playerTypes });
+    setNetStatus('⏳ Бөлме құрылып жатыр...');
+    socket.emit('create-room', { gameMode: 'teams', playerTypes, code: requestedCode || null });
   });
 
   joinBtn?.addEventListener('click', () => {
-    const code = (codeInput?.value || '').trim().toUpperCase();
-    if (code.length !== 6) {
-      alert('Введите 6-значный код комнаты.');
+    const code = normalizeCode(codeInput?.value || '');
+    if (!validCode(code)) {
+      alert('4–12 таңбалы бөлме кодын енгізіңіз.');
       return;
     }
     createBtn.disabled = true;
     joinBtn.disabled = true;
-    setNetStatus('⏳ Подключаюсь...');
+    setNetStatus('⏳ Бөлмеге қосылып жатырмыз...');
     socket.emit('join-room', { code });
   });
 
   copyBtn?.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(inviteUrl());
-      refreshStatus('✅ Ссылка скопирована.');
+      refreshStatus('✅ Бөлме сілтемесі көшірілді.');
     } catch {
-      prompt('Скопируйте ссылку:', inviteUrl());
+      prompt('Сілтемені көшіріп алыңыз:', inviteUrl());
     }
+  });
+
+  changeCodeBtn?.addEventListener('click', () => {
+    if (!NET.active || !NET.isHost) return;
+    const entered = prompt('Жаңа бөлме кодын енгізіңіз (4–12 таңба, тек A–Z және 0–9):', NET.roomCode || '');
+    if (entered === null) return;
+    const code = normalizeCode(entered);
+    if (!validCode(code)) {
+      alert('Код 4–12 таңбадан тұруы керек. Тек латын әріптері мен сандарды қолданыңыз.');
+      return;
+    }
+    socket.emit('change-room-code', { code });
+  });
+
+  leaveBtn?.addEventListener('click', () => {
+    if (!NET.active) return;
+    if (!confirm('Бөлмеден шығасыз ба?')) return;
+    leaveBtn.disabled = true;
+    socket.emit('leave-room', {}, () => {
+      location.href = location.origin;
+    });
+    setTimeout(() => {
+      location.href = location.origin;
+    }, 1200);
   });
 
   function onJoined(data) {
@@ -145,19 +205,27 @@
     NET.lastStatus = data.status || null;
 
     if (codeInput) codeInput.value = data.code;
-    if (copyBtn) copyBtn.style.display = '';
+    putRoomInUrl(data.code);
     applySettings(data.playerTypes || {});
     lockSetupForNetwork();
-    refreshStatus('Ждём остальных человеческих игроков...');
+    refreshStatus('⏳ Қалған адам ойыншыларын күтеміз...');
   }
 
   socket.on('room-created', onJoined);
   socket.on('room-joined', onJoined);
 
+  socket.on('room-code-changed', data => {
+    if (!data?.code) return;
+    NET.roomCode = data.code;
+    if (codeInput) codeInput.value = data.code;
+    putRoomInUrl(data.code);
+    refreshStatus('✅ Бөлме коды өзгертілді. Ескі код енді жұмыс істемейді.');
+  });
+
   socket.on('room-status', status => {
     NET.lastStatus = status;
     if (NET.active) {
-      refreshStatus(status.started ? '🎮 Игра запущена.' : '⏳ Ждём игроков...');
+      refreshStatus(status.started ? '🎮 Ойын басталды.' : '⏳ Ойыншыларды күтеміз...');
     }
   });
 
@@ -171,13 +239,13 @@
 
   socket.on('host-changed', () => {
     NET.isHost = true;
-    refreshStatus('👑 Теперь ваш браузер управляет ходами ИИ.');
+    refreshStatus('👑 Енді сіз бөлме иесісіз және ЖИ жүрістерін сіздің браузеріңіз есептейді.');
     maybeRunAi();
   });
 
-  socket.on('player-disconnected', data => {
-    const label = data?.color ? LABELS[data.color] : 'Игрок';
-    refreshStatus(`⚠️ ${label} отключился. Он может снова войти по тому же коду.`);
+  socket.on('player-left', data => {
+    const label = data?.color ? LABELS[data.color] : 'Ойыншы';
+    refreshStatus(`⚠️ ${label} бөлмеден шықты. Бос орынға басқа ойыншы қосыла алады.`);
   });
 
   function ensureGameStarted(playerTypes) {
@@ -190,7 +258,7 @@
     const setup = document.getElementById('setup');
     if (setup) setup.classList.add('hidden');
 
-    refreshStatus('🎮 Игра 2×2 началась.');
+    refreshStatus('🎮 2×2 ойыны басталды.');
     setTimeout(maybeRunAi, 180);
   }
 
@@ -230,7 +298,7 @@
     } finally {
       NET.suppressSync = false;
     }
-    refreshStatus('🔄 Игра начата заново.');
+    refreshStatus('🔄 Ойын қайта басталды.');
     setTimeout(maybeRunAi, 180);
   });
 
@@ -241,21 +309,18 @@
     }
   }
 
-  // ----- Patch: only the owner of the current human color can click -----
   const originalHandleClick = KazdoibaGame.prototype.handleClick;
   KazdoibaGame.prototype.handleClick = function(r, c) {
     if (NET.active && NET.started && NET.myColor !== this.currentPlayer) return;
     return originalHandleClick.call(this, r, c);
   };
 
-  // ----- Patch: only the host browser calculates AI moves -----
   const originalMakeAiMove = KazdoibaGame.prototype.makeAiMove;
   KazdoibaGame.prototype.makeAiMove = function() {
     if (NET.active && NET.started && !NET.isHost) return;
     return originalMakeAiMove.call(this);
   };
 
-  // ----- Patch: at the end of each turn send the serialized game to server -----
   const originalSave = KazdoibaGame.prototype.saveToLocalStorage;
   KazdoibaGame.prototype.saveToLocalStorage = function() {
     originalSave.call(this);
@@ -268,7 +333,6 @@
     }
   };
 
-  // ----- Patch HUD for online mode -----
   const originalUpdateHud = KazdoibaGame.prototype.updateHud;
   KazdoibaGame.prototype.updateHud = function() {
     originalUpdateHud.call(this);
@@ -277,7 +341,7 @@
     const undo = document.getElementById('btnUndo');
     if (undo) {
       undo.disabled = true;
-      undo.title = 'В онлайн-режиме отмена отключена, чтобы игроки не рассинхронизировались.';
+      undo.title = 'Онлайн ойында ойыншылардың тақтасы әртүрлі болып кетпеуі үшін жүрісті болдырмау өшірілген.';
     }
 
     const hint = document.getElementById('btnHint');
@@ -286,19 +350,17 @@
     }
   };
 
-  // ----- Online restart: host restarts for everyone -----
   const originalRestartGame = window.restartGame || restartGame;
   window.restartGame = function() {
     if (!NET.active) return originalRestartGame();
     if (!NET.isHost) {
-      alert('Только хозяин комнаты может перезапустить сетевую игру.');
+      alert('Онлайн ойынды тек бөлме иесі қайта бастай алады.');
       return;
     }
-    if (confirm('Начать сетевую игру заново для всех?')) {
+    if (confirm('Онлайн ойынды барлық ойыншы үшін қайта бастаймыз ба?')) {
       socket.emit('restart-room');
     }
   };
 
-  // Expose for debugging
   window.kazSocket = socket;
 })();
