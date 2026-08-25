@@ -16,8 +16,255 @@ const ALLOWED_TYPES = new Set(['human', 'ai-easy', 'ai-medium', 'ai-hard']);
 const ALLOWED_MODES = new Set(['ffa', 'teams']);
 const rooms = new Map();
 
+// ==================== SUPABASE ====================
+// Эти значения НЕ хранятся в GitHub. Render передаёт их через Environment Variables.
+const SUPABASE_URL = String(process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+const SUPABASE_SECRET_KEY = String(process.env.SUPABASE_SECRET_KEY || '');
+const DB_ENABLED = Boolean(SUPABASE_URL && SUPABASE_SECRET_KEY);
+
+const COLOR_NAMES_KK = {
+  blue: 'Көк',
+  black: 'Қара',
+  red: 'Қызыл',
+  white: 'Ақ'
+};
+
+const BOT_LEVELS_KK = {
+  'ai-easy': 'Жеңіл',
+  'ai-medium': 'Орта',
+  'ai-hard': 'Қиын'
+};
+
+async function supabaseRest(table, { method = 'GET', query = '', body = undefined, prefer = '' } = {}) {
+  if (!DB_ENABLED) return null;
+
+  const url = `${SUPABASE_URL}/rest/v1/${table}${query ? `?${query}` : ''}`;
+  const headers = {
+    apikey: SUPABASE_SECRET_KEY,
+    'Content-Type': 'application/json'
+  };
+  if (prefer) headers.Prefer = prefer;
+
+  const response = await fetch(url, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`Supabase ${method} ${table}: ${response.status} ${text}`);
+  }
+
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function queueDb(room, work) {
+  if (!DB_ENABLED || !room) return;
+  room.dbQueue = (room.dbQueue || Promise.resolve())
+    .then(work)
+    .catch((error) => {
+      console.error('❌ Supabase қатесі:', error.message);
+    });
+}
+
+function dbPlayerRow(room, color) {
+  const type = room.playerTypes[color];
+  const isHuman = type === 'human';
+  return {
+    match_id: room.dbMatchId,
+    player_name: isHuman
+      ? `${COLOR_NAMES_KK[color]} ойыншы`
+      : `${COLOR_NAMES_KK[color]} ЖИ`,
+    color,
+    player_type: isHuman ? 'human' : 'ai',
+    bot_level: isHuman ? null : (type.replace('ai-', '') || null),
+    result: null
+  };
+}
+
+async function ensureDbMatch(room) {
+  if (!DB_ENABLED || room.dbMatchId) return room.dbMatchId || null;
+
+  const inserted = await supabaseRest('matches', {
+    method: 'POST',
+    query: 'select=id',
+    body: {
+      room_code: room.code,
+      game_mode: room.gameMode,
+      winner: null,
+      status: 'playing'
+    },
+    prefer: 'return=representation'
+  });
+
+  const matchId = Array.isArray(inserted) && inserted[0] ? inserted[0].id : null;
+  if (!matchId) throw new Error('matches кестесінен жаңа match id алынбады.');
+
+  room.dbMatchId = matchId;
+  room.dbSavedMoveCount = 0;
+  room.dbFinished = false;
+
+  await supabaseRest('match_players', {
+    method: 'POST',
+    body: COLORS.map(color => dbPlayerRow(room, color)),
+    prefer: 'return=minimal'
+  });
+
+  console.log(`✅ Supabase: матч #${matchId} сақталды (${room.code})`);
+  return matchId;
+}
+
+function parseHistoryMove(log, index) {
+  const text = String(log?.text || '');
+  const squares = text.match(/[A-Z][0-9]{1,2}/g) || [];
+  const captureMatch = text.match(/Жою:\s*(\d+)/i);
+  const captureCount = captureMatch ? Number(captureMatch[1]) : 0;
+
+  return {
+    move_number: index + 1,
+    player_color: COLORS.includes(log?.player) ? log.player : 'blue',
+    from_square: squares[0] || '?',
+    to_square: squares.length ? squares[squares.length - 1] : '?',
+    captures: {
+      count: Number.isFinite(captureCount) ? captureCount : 0,
+      route: squares,
+      text
+    }
+  };
+}
+
+async function saveNewMoves(room, parsedState) {
+  const history = Array.isArray(parsedState?.historyLog) ? parsedState.historyLog : [];
+  const saved = Number(room.dbSavedMoveCount || 0);
+  if (history.length <= saved) return;
+
+  await ensureDbMatch(room);
+
+  const rows = [];
+  for (let i = saved; i < history.length; i++) {
+    rows.push({
+      match_id: room.dbMatchId,
+      ...parseHistoryMove(history[i], i)
+    });
+  }
+
+  if (rows.length) {
+    await supabaseRest('moves', {
+      method: 'POST',
+      body: rows,
+      prefer: 'return=minimal'
+    });
+    room.dbSavedMoveCount = history.length;
+  }
+}
+
+function winningColors(room, winner) {
+  if (!winner) return [];
+
+  if (room.gameMode === 'teams') {
+    const normalized = String(winner);
+    if (normalized === 'Көк + Қара' || normalized === 'blue-black') return ['blue', 'black'];
+    if (normalized === 'Қызыл + Ақ' || normalized === 'red-white') return ['red', 'white'];
+    return [];
+  }
+
+  return COLORS.includes(winner) ? [winner] : [];
+}
+
+async function finishDbMatch(room, winner) {
+  if (!winner || room.dbFinished) return;
+  await ensureDbMatch(room);
+
+  room.dbFinished = true;
+  const winners = new Set(winningColors(room, winner));
+  const finishedAt = new Date().toISOString();
+
+  await supabaseRest('matches', {
+    method: 'PATCH',
+    query: `id=eq.${encodeURIComponent(room.dbMatchId)}`,
+    body: {
+      winner: String(winner),
+      status: 'finished',
+      finished_at: finishedAt
+    },
+    prefer: 'return=minimal'
+  });
+
+  for (const color of COLORS) {
+    await supabaseRest('match_players', {
+      method: 'PATCH',
+      query: `match_id=eq.${encodeURIComponent(room.dbMatchId)}&color=eq.${encodeURIComponent(color)}`,
+      body: { result: winners.has(color) ? 'win' : 'loss' },
+      prefer: 'return=minimal'
+    });
+  }
+
+  console.log(`🏆 Supabase: матч #${room.dbMatchId} аяқталды. Жеңімпаз: ${winner}`);
+}
+
+async function abandonDbMatch(room) {
+  if (!room?.dbMatchId || room.dbFinished) return;
+  room.dbFinished = true;
+  await supabaseRest('matches', {
+    method: 'PATCH',
+    query: `id=eq.${encodeURIComponent(room.dbMatchId)}`,
+    body: {
+      status: 'abandoned',
+      finished_at: new Date().toISOString()
+    },
+    prefer: 'return=minimal'
+  });
+}
+
+async function updateDbRoomCode(room) {
+  if (!room?.dbMatchId || room.dbFinished) return;
+  await supabaseRest('matches', {
+    method: 'PATCH',
+    query: `id=eq.${encodeURIComponent(room.dbMatchId)}`,
+    body: { room_code: room.code },
+    prefer: 'return=minimal'
+  });
+}
+
+function startFreshDbMatch(room) {
+  room.dbMatchId = null;
+  room.dbSavedMoveCount = 0;
+  room.dbFinished = false;
+  queueDb(room, () => ensureDbMatch(room));
+}
+
+if (DB_ENABLED) {
+  console.log('✅ Supabase бапталды: ойын нәтижелері базаға сақталады.');
+} else {
+  console.warn('⚠️ Supabase өшірулі: SUPABASE_URL немесе SUPABASE_SECRET_KEY табылмады.');
+}
+
+// ==================== WEB SERVER ====================
 app.use(express.static(path.join(__dirname, 'public')));
-app.get('/health', (_req, res) => res.json({ ok: true, rooms: rooms.size }));
+app.get('/health', (_req, res) => res.json({
+  ok: true,
+  rooms: rooms.size,
+  database: DB_ENABLED ? 'configured' : 'disabled'
+}));
+
+app.get('/health/db', async (_req, res) => {
+  if (!DB_ENABLED) {
+    return res.status(503).json({ ok: false, database: 'disabled' });
+  }
+  try {
+    await supabaseRest('matches', { method: 'GET', query: 'select=id&limit=1' });
+    return res.json({ ok: true, database: 'connected' });
+  } catch (error) {
+    console.error('❌ Supabase тексеру қатесі:', error.message);
+    return res.status(500).json({ ok: false, database: 'error' });
+  }
+});
 
 function normalizeRoomCode(value) {
   return String(value || '')
@@ -84,6 +331,8 @@ function maybeStart(room) {
   if (!room.started && needed > 0 && connectedHumans(room) === needed) {
     room.started = true;
     room.expectedPlayer = 'blue';
+    startFreshDbMatch(room);
+
     io.to(room.code).emit('game-start', {
       code: room.code,
       gameMode: room.gameMode,
@@ -131,6 +380,7 @@ function removeSocketFromRoom(socket, { announce = true } = {}) {
 
   const remainingIds = COLORS.map(c => room.slots[c]).filter(Boolean);
   if (remainingIds.length === 0) {
+    queueDb(room, () => abandonDbMatch(room));
     rooms.delete(code);
     return { room: null, color: leavingColor };
   }
@@ -152,6 +402,7 @@ function changeRoomCode(room, newCode) {
   rooms.delete(oldCode);
   room.code = newCode;
   rooms.set(newCode, room);
+  queueDb(room, () => updateDbRoomCode(room));
 
   for (const socketId of socketIds) {
     const member = io.sockets.sockets.get(socketId);
@@ -200,7 +451,11 @@ io.on('connection', (socket) => {
       expectedPlayer: 'blue',
       state: null,
       winner: null,
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      dbMatchId: null,
+      dbSavedMoveCount: 0,
+      dbFinished: false,
+      dbQueue: Promise.resolve()
     };
 
     const color = assignHumanSlot(room, socket.id);
@@ -337,6 +592,13 @@ io.on('connection', (socket) => {
     room.winner = payload.winner || null;
     room.expectedPlayer = parsed.currentPlayer;
 
+    // База не должна тормозить игру: операции выполняются в отдельной очереди.
+    queueDb(room, async () => {
+      await ensureDbMatch(room);
+      await saveNewMoves(room, parsed);
+      if (room.winner) await finishDbMatch(room, room.winner);
+    });
+
     socket.to(code).emit('game-state', {
       state: room.state,
       winner: room.winner
@@ -347,6 +609,15 @@ io.on('connection', (socket) => {
     const code = socket.data.roomCode;
     const room = code && rooms.get(code);
     if (!room || room.hostSocketId !== socket.id) return;
+
+    // Старую незавершённую партию помечаем как прерванную.
+    queueDb(room, async () => {
+      await abandonDbMatch(room);
+      room.dbMatchId = null;
+      room.dbSavedMoveCount = 0;
+      room.dbFinished = false;
+      await ensureDbMatch(room);
+    });
 
     room.state = null;
     room.winner = null;
