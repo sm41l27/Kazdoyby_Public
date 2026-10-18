@@ -1,0 +1,176 @@
+/* Қазақы нақыш. Decorative SVG backgrounds only; no changes to board or rules.
+   Loaded last so both the original screens and newer dialogs use one palette. */
+:root {
+  color-scheme: dark;
+  --social-bg: #111c1f;
+  --social-panel: #1a2a2d;
+  --social-soft: #24383c;
+  --social-text: #edf4f2;
+  --social-muted: #b3c3c2;
+  --social-line: #354b4e;
+  --social-accent: #75cfc2;
+  --social-ink: #102725;
+  --q-gold: #c3a774;
+  --q-glow: rgba(69, 150, 143, .11);
+  --q-shadow: 0 18px 50px rgba(0, 0, 0, .14);
+  --q-field: url('/ornaments/dark-medallion.svg');
+  --q-ribbon: url('/ornaments/dark-ribbon.svg');
+  --q-field-size: 360px 720px;
+  --q-left: left -155px top 80px;
+  --q-right: right -155px top 400px;
+  --app-bg: var(--social-bg);
+  --panel: var(--social-panel);
+  --panel-2: var(--social-soft);
+  --panel-soft: var(--social-soft);
+  --text: var(--social-text);
+  --muted: var(--social-muted);
+  --accent: var(--social-accent);
+  --accent-2: var(--social-accent);
+  --line: var(--social-line);
+}
+:root[data-theme=light] {
+  color-scheme: light;
+  --social-bg: #faf7f0;
+  --social-panel: #fffdf8;
+  --social-soft: #edf4f0;
+  --social-text: #20383b;
+  --social-muted: #596d6d;
+  --social-line: #d4ded6;
+  --social-accent: #216f68;
+  --social-ink: #fff;
+  --q-gold: #967239;
+  --q-glow: rgba(105, 172, 158, .10);
+  --q-shadow: 0 18px 50px rgba(48, 77, 67, .07);
+  --q-field: url('/ornaments/light-corner.svg');
+  --q-ribbon: url('/ornaments/light-ribbon.svg');
+  --q-field-size: 400px 400px;
+  --q-left: left -110px top 100px;
+  --q-right: right -160px bottom -65px;
+  --app-bg: var(--social-bg);
+  --panel: var(--social-panel);
+  --line: var(--social-line);
+}
+/* The fixed setup screen needs its own canvas. Backgrounds never intercept input. */
+:root[data-theme] body, :root[data-theme] .play-stage {
+  color: var(--social-text);
+  background-color: var(--social-bg);
+  background-image: var(--q-field), var(--q-field),
+    radial-gradient(ellipse at 50% 0, var(--q-glow), transparent 65%);
+  background-position: var(--q-left), var(--q-right), center top;
+  background-size: var(--q-field-size), var(--q-field-size), 100% 900px;
+  background-repeat: no-repeat;
+}
+:root[data-theme] .container.app-shell, :root[data-theme] .home-screen, :root[data-theme] .game.active {
+  background: transparent;
+  color: var(--social-text);
+}
+:root[data-theme] .app-header {
+  background: var(--social-bg);
+  border-bottom-color: var(--social-line);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--q-gold) 22%, transparent);
+}
+/* A woven lower edge and a quiet motif behind the illustration join the hero
+   to the surrounding canvas without placing ornament behind the text. */
+:root[data-theme] .home-hero {
+  background-color: var(--social-panel);
+  background-image: var(--q-ribbon), var(--q-field),
+    radial-gradient(ellipse at 100% 15%, var(--q-glow), transparent 65%);
+  background-position: left bottom, right -35px center, center;
+  background-size: 160px 40px, 380px auto, 100% 100%;
+  background-repeat: repeat-x, no-repeat, no-repeat;
+  border-color: var(--social-line);
+  padding-bottom: 64px;
+  box-shadow: var(--q-shadow);
+}
+:root[data-theme] .home-hero h1 { color: var(--social-text); }
+:root[data-theme] .home-hero p { color: var(--social-muted); }
+:root[data-theme] .home-shortcuts button {
+  background-color: var(--social-panel);
+  background-image: var(--q-ribbon);
+  background-position: right -52px bottom -12px;
+  background-repeat: no-repeat;
+  background-size: 160px 40px;
+  border-color: var(--social-line);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--q-gold) 5%, transparent);
+}
+:root[data-theme] .home-shortcuts button:hover { border-color: var(--q-gold); }
+:root[data-theme] :is(.hero-play-btn, .side-play-btn, .btn-start, .network-btn:not(.leave), .auth-primary, .profile-save-btn) {
+  background: var(--social-accent);
+  color: var(--social-ink);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--social-accent) 50%, #000);
+}
+:root[data-theme] :is(.hero-secondary-btn, .stage-back-btn, .auth-secondary, .auth-close,
+  .profile-stat, .quick-icon, .history-empty, .match-row, .network-status, .play-choice-card) {
+  background: var(--social-soft);
+  color: var(--social-text);
+  border-color: var(--social-line);
+}
+:root[data-theme] :is(.setup, .network-panel, .online-identity, .player-config, .home-card,
+  .profile-panel, .auth-modal, .play-choice-modal, .time-result-card, .history-panel) {
+  background-color: var(--social-panel);
+  color: var(--social-text);
+  border-color: var(--social-line);
+}
+:root[data-theme] :is(.setup h2, .player-config label, .network-panel h2, .play-stage-header h2,
+  .play-choice-modal h2, .play-choice-card strong, .auth-modal h2, .history-panel h3,
+  .online-identity strong, .profile-stat strong, .home-card h2, .home-card h3) {
+  color: var(--social-text);
+}
+:root[data-theme] :is(.play-choice-card small, .stage-brand, .auth-subtitle, .network-help,
+  .auth-field label, .auth-switch, .profile-message) { color: var(--social-muted); }
+:root[data-theme] :is(.online-identity input, .network-row input, .player-config select,
+  .auth-field input, .language-bar select, .profile-row input) {
+  background: var(--social-bg);
+  color: var(--social-text);
+  border-color: var(--social-line);
+}
+:root[data-theme] .history-list li { background: var(--social-soft); color: var(--social-text); }
+:root[data-theme] .match-clock:not(.warning):not(.danger):not(.finished) {
+  background: var(--social-panel); color: var(--social-text); border-color: var(--social-line);
+}
+:root[data-theme] .match-clock .clock-label { color: var(--social-muted); }
+:root[data-theme] .controls .status {
+  background: var(--social-soft);
+  color: var(--social-text);
+  border-color: var(--social-line);
+}
+:root[data-theme] .controls .status.ai-thinking { border-color: #ff6b6b; }
+:root[data-theme] .controls .btn:not(:disabled) {
+  background: var(--social-accent);
+  color: var(--social-ink);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--social-accent) 50%, #000);
+}
+/* Repeat the small woven edge in friends, settings, room and tournament dialogs. */
+:root[data-theme] .social-header {
+  background: var(--q-ribbon) right 76px bottom -17px / 160px 40px no-repeat,
+    var(--social-panel);
+  border-bottom-color: var(--social-line);
+}
+:root[data-theme] .social-dialog { box-shadow: var(--q-shadow), 0 24px 100px #0003; }
+:root[data-theme] .auth-link { color: var(--social-accent); }
+:root[data-theme] :is(button, a, input, select):focus-visible {
+  outline: 3px solid var(--social-accent); outline-offset: 3px;
+}
+/* Both samples always show their own pattern, independent of the current mode. */
+:root[data-theme] .theme-swatch.dark-swatch {
+  background: url('/ornaments/dark-medallion.svg') center 46% / 140px auto no-repeat, #111c1f;
+  border-color: #56665b;
+}
+:root[data-theme] .theme-swatch.light-swatch {
+  background: url('/ornaments/light-corner.svg') center / 150px auto no-repeat, #faf7f0;
+  border-color: #d5d9ca;
+}
+@media (max-width: 760px) {
+  :root { --q-field-size: 240px 480px; --q-left: left -180px top 110px; --q-right: right -180px bottom 0; }
+  :root[data-theme=light] { --q-field-size: 240px 240px; --q-left: left -170px top 120px; --q-right: right -160px bottom 0; }
+  :root[data-theme] .home-hero {
+    padding-bottom: 54px;
+    background-position: left bottom, right -140px bottom 25px, center;
+    background-size: 128px 32px, 280px auto, 100% 100%;
+  }
+  :root[data-theme] .home-shortcuts button { background-size: 128px 32px; }
+}
+@media (forced-colors: active) {
+  :root[data-theme] body, :root[data-theme] .play-stage, :root[data-theme] .home-hero,
+  :root[data-theme] .home-shortcuts button, :root[data-theme] .social-header { background-image: none; }
+}
